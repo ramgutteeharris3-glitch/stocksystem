@@ -1,0 +1,7 @@
+{
+  "name": "StockMaster AI",
+  "description": "An intelligent stock inventory management system featuring AI-driven insights, low-stock predictions, and automated product categorization using Gemini.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
