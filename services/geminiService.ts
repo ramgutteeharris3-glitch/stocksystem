@@ -7,9 +7,21 @@ import { InventoryItem, AIInsight, Category } from "../types";
  */
 
 export const analyzeInventory = async (items: InventoryItem[]): Promise<AIInsight[]> => {
-  // Simulate a small delay for "thinking" effect
-  await new Promise(resolve => setTimeout(resolve, 300));
+  try {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items }),
+    });
 
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (e) {
+    console.warn("Backend AI unreachable, falling back to local analysis", e);
+  }
+
+  // Local Fallback Logic (Offline)
   const insights: AIInsight[] = [];
   
   // 1. Check for Low Stock
