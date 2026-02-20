@@ -6,6 +6,7 @@ import StatCard from './components/StatCard';
 import InventoryTable from './components/InventoryTable';
 import ItemForm from './components/ItemForm';
 import ImportModal from './components/ImportModal';
+import ItemHistoryModal from './components/ItemHistoryModal';
 import ReceiptModal from './components/ReceiptModal';
 import TransferModal from './components/TransferModal';
 import VatRefundModal from './components/VatRefundModal';
@@ -21,7 +22,8 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 const App: React.FC = () => {
   const [items, setItems] = useState<InventoryItem[]>(() => {
     const saved = localStorage.getItem('inventory_data_v3');
-    return saved ? JSON.parse(saved) : INITIAL_ITEMS;
+    const data = saved ? JSON.parse(saved) : INITIAL_ITEMS;
+    return data.sort((a: InventoryItem, b: InventoryItem) => a.name.localeCompare(b.name));
   });
   
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
@@ -46,15 +48,32 @@ const App: React.FC = () => {
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
   const [isVatRefundOpen, setIsVatRefundOpen] = useState(false);
+  const [isItemHistoryOpen, setIsItemHistoryOpen] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | undefined>();
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<InventoryItem | undefined>();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved === 'dark';
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
 
   useEffect(() => {
     localStorage.setItem('inventory_data_v3', JSON.stringify(items));
   }, [items]);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     localStorage.setItem('inventory_transactions_v3', JSON.stringify(transactions));
@@ -137,14 +156,36 @@ const App: React.FC = () => {
     const cleanPromo = itemData.promoPrice ? Number(itemData.promoPrice) : undefined;
     
     if (editingItem) {
-      setItems(prev => prev.map(i => i.id === editingItem.id ? { 
-        ...i, 
-        ...itemData, 
-        price: cleanPrice,
-        promoPrice: cleanPromo,
-        sku: normalizedSku,
-        lastUpdated: timestamp 
-      } as InventoryItem : i));
+      setItems(prev => {
+        const itemMovements: StockMovement[] = [];
+        const oldItem = prev.find(i => i.id === editingItem.id);
+        
+        if (oldItem) {
+          if (oldItem.price !== cleanPrice) {
+            itemMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Price Change: MUR ${oldItem.price} -> MUR ${cleanPrice}`));
+          }
+          if (oldItem.promoPrice !== cleanPromo) {
+            itemMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Promo Change: MUR ${oldItem.promoPrice || 0} -> MUR ${cleanPromo || 0}`));
+          }
+          if (oldItem.offers !== itemData.offers) {
+            itemMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Offer Change: ${oldItem.offers || 'None'} -> ${itemData.offers || 'None'}`));
+          }
+        }
+
+        if (itemMovements.length > 0) {
+          setMovements(mPrev => [...itemMovements, ...mPrev]);
+        }
+
+        const newList = prev.map(i => i.id === editingItem.id ? { 
+          ...i, 
+          ...itemData, 
+          price: cleanPrice,
+          promoPrice: cleanPromo,
+          sku: normalizedSku,
+          lastUpdated: timestamp 
+        } as InventoryItem : i);
+        return newList.sort((a, b) => a.name.localeCompare(b.name));
+      });
     } else {
       const newItem: InventoryItem = {
         ...itemData as InventoryItem,
@@ -155,7 +196,10 @@ const App: React.FC = () => {
         stocks: itemData.stocks || {},
         lastUpdated: timestamp
       };
-      setItems(prev => [...prev, newItem]);
+      setItems(prev => {
+        const newList = [...prev, newItem];
+        return newList.sort((a, b) => a.name.localeCompare(b.name));
+      });
       
       if (itemData.quantity && itemData.quantity > 0) {
         setMovements(prev => [
@@ -300,6 +344,15 @@ const App: React.FC = () => {
 
           if (matchedIndices.length > 0) {
             matchedIndices.forEach(idx => {
+              const oldItem = updatedList[idx];
+              const priceChanged = oldItem.price !== cleanPrice;
+              const promoChanged = oldItem.promoPrice !== cleanPromo;
+              const offerChanged = cleanOffers && oldItem.offers !== cleanOffers;
+
+              if (priceChanged) importMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Bulk Price Override: MUR ${oldItem.price} -> MUR ${cleanPrice}`));
+              if (promoChanged) importMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Bulk Promo Override: MUR ${oldItem.promoPrice || 0} -> MUR ${cleanPromo || 0}`));
+              if (offerChanged) importMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Bulk Offer Override: ${oldItem.offers || 'None'} -> ${cleanOffers}`));
+
               updatedList[idx] = { 
                 ...updatedList[idx], 
                 price: cleanPrice,
@@ -339,8 +392,14 @@ const App: React.FC = () => {
           if (existingIdx > -1) {
             const currentItem = updatedList[existingIdx];
             const updatedStocks = { ...(currentItem.stocks || {}) };
-            updatedStocks[targetShop] = (Number(updatedStocks[targetShop]) || 0) + change;
+            updatedStocks[targetShop] = change;
             
+            const priceChanged = cleanPrice && currentItem.price !== cleanPrice;
+            const offerChanged = cleanOffers && currentItem.offers !== cleanOffers;
+
+            if (priceChanged) importMovements.push(createMovement(currentItem.id, currentItem.name, currentItem.sku, 'Master', 'ADJUST', 0, undefined, `Stock Load Price Sync: MUR ${currentItem.price} -> MUR ${cleanPrice}`));
+            if (offerChanged) importMovements.push(createMovement(currentItem.id, currentItem.name, currentItem.sku, 'Master', 'ADJUST', 0, undefined, `Stock Load Offer Sync: ${currentItem.offers || 'None'} -> ${cleanOffers}`));
+
             // If the stock load includes Price/Offer data, update it too
             updatedList[existingIdx] = { 
               ...currentItem, 
@@ -350,7 +409,7 @@ const App: React.FC = () => {
               offers: cleanOffers || currentItem.offers,
               lastUpdated: timestamp 
             };
-            importMovements.push(createMovement(currentItem.id, currentItem.name, currentItem.sku, targetShop, 'IN', change, 'BULK_IMPORT', `Stock Load at ${targetShop}`));
+            importMovements.push(createMovement(currentItem.id, currentItem.name, currentItem.sku, targetShop, 'ADJUST', change, 'BULK_OVERRIDE', `Stock Override at ${targetShop}`));
           } else {
             const newItem: InventoryItem = {
               id: Math.random().toString(36).substr(2, 9),
@@ -362,7 +421,7 @@ const App: React.FC = () => {
               price: cleanPrice, 
               promoPrice: cleanPromo,
               offers: cleanOffers,
-              description: 'Created during stock load',
+              description: 'Created during stock override',
               lastUpdated: timestamp
             };
             updatedList.push(newItem);
@@ -370,11 +429,57 @@ const App: React.FC = () => {
           }
         }
       });
-      return updatedList;
+      return updatedList.sort((a, b) => a.name.localeCompare(b.name));
     });
     
     setMovements(prev => [...importMovements, ...prev]);
     setIsImportOpen(false);
+  };
+
+  const handleDownloadStock = () => {
+    const isMaster = currentShop === 'Master';
+    
+    // Filter and sort items
+    const exportItems = items
+      .map(item => {
+        const qty = isMaster 
+          ? Object.values(item.stocks || {}).reduce((a: number, b: number) => a + (Number(b) || 0), 0)
+          : (Number(item.stocks?.[currentShop]) || 0);
+        return { ...item, currentQty: qty };
+      })
+      .filter(item => item.currentQty > 0)
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (exportItems.length === 0) {
+      alert("No items with stock to download.");
+      return;
+    }
+
+    // CSV Header
+    const header = "product code,description,quantity,unitprice,promoprice,offers,,,,,,,";
+    
+    // CSV Rows
+    const rows = exportItems.map(item => {
+      const sku = item.sku || '';
+      const name = item.name.replace(/,/g, ''); // Basic CSV escaping
+      const qty = item.currentQty;
+      const price = item.price;
+      const promo = item.promoPrice || '';
+      const offers = (item.offers || '').replace(/,/g, '');
+      
+      return `${sku},${name},${qty},${price},${promo},${offers},,,,,,,`;
+    });
+
+    const csvContent = [header, ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `stock_export_${currentShop}_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleEditTransaction = (txn: Transaction) => {
@@ -399,61 +504,69 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
-      <nav className="sticky top-0 z-40 bg-white/90 backdrop-blur-xl border-b border-slate-100 px-8 py-4 flex items-center justify-between no-print">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans transition-colors duration-300">
+      <nav className="sticky top-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border-b border-slate-100 dark:border-slate-800 px-8 py-4 flex items-center justify-between no-print">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200">
+          <div className="w-12 h-12 bg-slate-900 dark:bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-slate-200 dark:shadow-none">
             <i className="fa-solid fa-boxes-packing text-white text-2xl"></i>
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-900 leading-none tracking-tight">StockMaster <span className="text-indigo-600">Local</span></h1>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white leading-none tracking-tight">StockMaster <span className="text-indigo-600 dark:text-indigo-400">Local</span></h1>
             <div className="flex items-center gap-3 mt-1">
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Offline Intelligent Hub</p>
-              <span className="w-1 h-1 bg-slate-200 rounded-full"></span>
-              <p className="text-[10px] text-indigo-500 font-black uppercase tracking-widest">v2.5 Pro</p>
+              <span className="w-1 h-1 bg-slate-200 dark:bg-slate-700 rounded-full"></span>
+              <p className="text-[10px] text-indigo-500 dark:text-indigo-400 font-black uppercase tracking-widest">v2.5 Pro</p>
             </div>
           </div>
         </div>
         
         <div className="flex items-center gap-3">
-          <div className="hidden md:flex bg-slate-100 p-1 rounded-xl gap-1 mr-4 border border-slate-200/50">
-             <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'inventory' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+          <button 
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className="w-10 h-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all mr-2"
+            title={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          >
+            <i className={`fa-solid ${isDarkMode ? 'fa-sun' : 'fa-moon'}`}></i>
+          </button>
+
+          <div className="hidden md:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 mr-4 border border-slate-200/50 dark:border-slate-700/50">
+             <button onClick={() => setActiveTab('inventory')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'inventory' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Inventory
              </button>
-             <button onClick={() => setActiveTab('tracker')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'tracker' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+             <button onClick={() => setActiveTab('tracker')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'tracker' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Tracker
              </button>
-             <button onClick={() => setActiveTab('ledger')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'ledger' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+             <button onClick={() => setActiveTab('ledger')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'ledger' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Ledger
              </button>
-             <button onClick={() => setActiveTab('customers')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'customers' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+             <button onClick={() => setActiveTab('customers')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'customers' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Customers
              </button>
-             <button onClick={() => setActiveTab('movements')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'movements' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>
+             <button onClick={() => setActiveTab('movements')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'movements' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Log
              </button>
           </div>
 
-          <div className="hidden md:flex bg-slate-100 p-1 rounded-xl gap-1 border border-slate-200/50">
+          <div className="hidden md:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 border border-slate-200/50 dark:border-slate-700/50">
             <button onClick={() => { setIsViewOnly(false); setEditingTransaction(undefined); setIsReceiptOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white shadow-sm rounded-lg font-bold text-xs hover:bg-indigo-700 transition-all">
               <i className="fa-solid fa-cash-register"></i> Sell
             </button>
-            <button onClick={() => { setIsViewOnly(false); setEditingTransaction(undefined); setIsTransferOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 shadow-sm rounded-lg font-bold text-xs hover:bg-slate-50 transition-all border border-slate-200">
+            <button onClick={() => { setIsViewOnly(false); setEditingTransaction(undefined); setIsTransferOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 shadow-sm rounded-lg font-bold text-xs hover:bg-slate-50 dark:hover:bg-slate-600 transition-all border border-slate-200 dark:border-slate-600">
               <i className="fa-solid fa-right-left text-indigo-500"></i> Transfer
             </button>
             <button onClick={() => { setIsViewOnly(false); setEditingTransaction(undefined); setIsVatRefundOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white shadow-sm rounded-lg font-bold text-xs hover:bg-emerald-700 transition-all">
               <i className="fa-solid fa-passport"></i> VAT
             </button>
           </div>
-          <button onClick={() => setIsImportOpen(true)} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-800 transition-all shadow-lg flex items-center gap-2">
+          <button onClick={() => setIsImportOpen(true)} className="bg-slate-900 dark:bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all shadow-lg flex items-center gap-2">
             <i className="fa-solid fa-file-import"></i> Bulk Import
           </button>
         </div>
       </nav>
 
-      <div className="bg-white border-b border-slate-100 px-8 py-2 overflow-x-auto scrollbar-hide flex gap-2 shop-tabs">
+      <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-2 overflow-x-auto scrollbar-hide flex gap-2 shop-tabs transition-colors">
         {SHOPS.map(shop => (
-          <button key={shop} onClick={() => setCurrentShop(shop)} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${currentShop === shop ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}>
+          <button key={shop} onClick={() => setCurrentShop(shop)} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${currentShop === shop ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
             {shop === 'Master' ? <i className="fa-solid fa-globe mr-2"></i> : <i className="fa-solid fa-shop mr-2 text-[10px] opacity-60"></i>}
             {shop}
           </button>
@@ -472,7 +585,14 @@ const App: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
               <div className="lg:col-span-3">
-                <InventoryTable items={items} currentShop={currentShop} onEdit={handleEditItem} onDelete={(id) => setItems(prev => prev.filter(i => i.id !== id))} />
+                <InventoryTable 
+                  items={items} 
+                  currentShop={currentShop} 
+                  onEdit={handleEditItem} 
+                  onDelete={(id) => setItems(prev => prev.filter(i => i.id !== id))} 
+                  onDownload={handleDownloadStock}
+                  onViewHistory={(item) => { setSelectedHistoryItem(item); setIsItemHistoryOpen(true); }}
+                />
               </div>
 
               <div className="space-y-6 no-print">
@@ -544,6 +664,10 @@ const App: React.FC = () => {
 
       {isImportOpen && (
         <ImportModal initialShop={currentShop} onImport={handleBulkImport} onClose={() => setIsImportOpen(false)} />
+      )}
+
+      {isItemHistoryOpen && selectedHistoryItem && (
+        <ItemHistoryModal item={selectedHistoryItem} movements={movements} onClose={() => { setIsItemHistoryOpen(false); setSelectedHistoryItem(undefined); }} />
       )}
 
       {isReceiptOpen && (

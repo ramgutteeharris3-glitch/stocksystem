@@ -5,56 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>StockMaster Local</title>
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        @media print {
-            nav, 
-            .no-print, 
-            button, 
-            input, 
-            select,
-            .shop-tabs { 
-                display: none !important; 
-            }
-            .print-only { 
-                display: block !important; 
-            }
-            body { 
-                background: white !important; 
-                padding: 0 !important;
-                margin: 0 !important;
-            }
-            main { 
-                padding: 0 !important; 
-                max-width: 100% !important; 
-                margin: 0 !important;
-            }
-            .shadow-sm, .shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl { 
-                box-shadow: none !important; 
-                border: 1px solid #e2e8f0 !important; 
-            }
-            .rounded-[2rem], .rounded-[3rem], .rounded-3xl, .rounded-2xl { 
-                border-radius: 0.5rem !important; 
-            }
-            tr {
-                page-break-inside: avoid;
-            }
-            .bg-slate-900 {
-                background-color: #0f172a !important;
-                color: white !important;
-                -webkit-print-color-adjust: exact;
-            }
-            .text-indigo-600 {
-                color: #4f46e5 !important;
-                -webkit-print-color-adjust: exact;
-            }
-        }
-    </style>
 <script type="importmap">
 {
   "imports": {
@@ -68,7 +22,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body class="bg-slate-50 text-slate-900">
+<body class="transition-colors duration-300">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 <script>

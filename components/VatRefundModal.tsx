@@ -152,20 +152,20 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[2.5rem] w-full max-w-7xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-[95vh]">
+    <div className="fixed inset-0 bg-slate-900/70 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-colors">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-7xl overflow-hidden shadow-2xl flex flex-col md:flex-row h-[95vh] transition-colors">
         
         {!isViewOnly && (
-          <div className="w-full md:w-1/3 bg-white border-r border-slate-100 flex flex-col h-full overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50">
-              <h3 className="text-xl font-black text-slate-800 tracking-tight">VAT Refund Processing</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Configuration Panel</p>
+          <div className="w-full md:w-1/3 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 flex flex-col h-full overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight">VAT Refund Processing</h3>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Configuration Panel</p>
             </div>
 
             <div className="flex-grow overflow-y-auto p-8 space-y-6 scrollbar-hide">
               {/* Terminal Selection */}
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
                    <i className="fa-solid fa-shop"></i> Processing Terminal
                 </label>
                 <div className="grid grid-cols-3 gap-2">
@@ -173,7 +173,7 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
                     <button 
                       key={shop} 
                       onClick={() => setSelectedShop(shop)}
-                      className={`px-1 py-2 rounded-xl text-[8px] font-black uppercase border transition-all ${selectedShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-indigo-100'}`}
+                      className={`px-1 py-2 rounded-xl text-[8px] font-black uppercase border transition-all ${selectedShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-slate-50 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border-slate-100 dark:border-slate-700 hover:border-indigo-100 dark:hover:border-indigo-900'}`}
                     >
                       {shop}
                     </button>
