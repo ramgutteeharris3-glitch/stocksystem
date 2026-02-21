@@ -118,40 +118,40 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className={`bg-white rounded-[2.5rem] w-full ${isViewOnly ? 'max-w-2xl' : 'max-w-6xl'} overflow-hidden shadow-2xl flex flex-col md:flex-row h-[90vh]`}>
+    <div className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-colors">
+      <div className={`bg-white dark:bg-slate-900 rounded-[2.5rem] w-full ${isViewOnly ? 'max-w-2xl' : 'max-w-6xl'} overflow-hidden shadow-2xl flex flex-col md:flex-row h-[90vh] transition-colors`}>
         
         {!isViewOnly && (
-          <div className="flex-1 bg-white flex flex-col h-full border-r border-slate-100 overflow-hidden">
-            <div className="px-8 py-6 border-b border-slate-50 flex justify-between items-center bg-white">
+          <div className="flex-1 bg-white dark:bg-slate-900 flex flex-col h-full border-r border-slate-100 dark:border-slate-800 overflow-hidden">
+            <div className="px-8 py-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-white dark:bg-slate-900">
               <div>
-                <h3 className="text-2xl font-black text-slate-800 tracking-tight">Stock Transfer Designer</h3>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Inventory Re-allocation Note</p>
+                <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight">Stock Transfer Designer</h3>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Inventory Re-allocation Note</p>
               </div>
             </div>
 
             <div className="flex-grow overflow-y-auto p-8 space-y-8 scrollbar-hide">
-              <div className="flex bg-slate-100 p-1 rounded-2xl w-fit">
-                 <button onClick={() => setDocType('DELIVERY_NOTE')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${docType === 'DELIVERY_NOTE' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Delivery Note</button>
-                 <button onClick={() => setDocType('WAREHOUSE_TRANSFER')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${docType === 'WAREHOUSE_TRANSFER' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Transfer Note</button>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl w-fit">
+                 <button onClick={() => setDocType('DELIVERY_NOTE')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${docType === 'DELIVERY_NOTE' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Delivery Note</button>
+                 <button onClick={() => setDocType('WAREHOUSE_TRANSFER')} className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${docType === 'WAREHOUSE_TRANSFER' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400'}`}>Transfer Note</button>
               </div>
 
               <div className="grid grid-cols-2 gap-8">
                 <div className="space-y-4">
-                  <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest">Source Shop (OUT)</label>
+                  <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Source Shop (OUT)</label>
                   <div className="grid grid-cols-2 gap-2">
                     {SHOPS.filter(s => s !== 'Master').map(shop => (
-                      <button key={shop} onClick={() => setSelectedFromShop(shop)} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedFromShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>
+                      <button key={shop} onClick={() => setSelectedFromShop(shop)} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedFromShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                         {shop}
                       </button>
                     ))}
                   </div>
                 </div>
                 <div className="space-y-4">
-                  <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest">Destination Shop (IN)</label>
+                  <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Destination Shop (IN)</label>
                   <div className="grid grid-cols-2 gap-2">
                     {SHOPS.filter(s => s !== 'Master').map(shop => (
-                      <button key={shop} onClick={() => setSelectedToShop(shop)} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedToShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-500 border-slate-200'}`}>
+                      <button key={shop} onClick={() => setSelectedToShop(shop)} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedToShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                         {shop}
                       </button>
                     ))}
@@ -161,33 +161,33 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
 
               <div className="grid grid-cols-2 gap-4">
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase">DN Number</label>
-                    <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm" value={dnNumber} onChange={e => setDnNumber(e.target.value)} placeholder="DN-XXXX" />
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">DN Number</label>
+                    <input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-900 dark:text-white" value={dnNumber} onChange={e => setDnNumber(e.target.value)} placeholder="DN-XXXX" />
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase">WT Number</label>
-                    <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm" value={wtNumber} onChange={e => setWtNumber(e.target.value)} placeholder="WT-XXXX" />
+                    <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">WT Number</label>
+                    <input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-900 dark:text-white" value={wtNumber} onChange={e => setWtNumber(e.target.value)} placeholder="WT-XXXX" />
                  </div>
               </div>
 
               <div className="space-y-2">
-                 <label className="text-[10px] font-black text-slate-400 uppercase">Staff Member</label>
-                 <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-100 rounded-xl font-bold text-sm" value={staffName} onChange={e => setStaffName(e.target.value)} />
+                 <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Staff Member</label>
+                 <input type="text" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-900 dark:text-white" value={staffName} onChange={e => setStaffName(e.target.value)} />
               </div>
 
               <div className="space-y-4">
-                <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest">Select Items to Move</label>
+                <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Select Items to Move</label>
                 <div className="relative">
                   <input 
-                    type="text" className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold"
+                    type="text" className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl font-bold text-slate-900 dark:text-white"
                     placeholder="Search source stock..." value={searchQuery} onChange={e => {setSearchQuery(e.target.value); setIsDropdownOpen(true);}}
                   />
                   {isDropdownOpen && searchQuery && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl shadow-xl z-20 max-h-60 overflow-y-auto">
                       {filteredSearch.map(item => (
-                        <button key={item.id} type="button" onClick={() => addToCart(item)} className="w-full text-left p-4 hover:bg-indigo-50 flex items-center justify-between">
-                          <div><p className="font-bold text-slate-800">{item.name}</p><p className="text-[10px] text-slate-400 uppercase">{item.sku}</p></div>
-                          <span className="font-black text-indigo-600 text-xs">Stock: {selectedFromShop === 'Master' ? 'N/A' : (item.stocks[selectedFromShop] || 0)}</span>
+                        <button key={item.id} type="button" onClick={() => addToCart(item)} className="w-full text-left p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 flex items-center justify-between">
+                          <div><p className="font-bold text-slate-800 dark:text-white">{item.name}</p><p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">{item.sku}</p></div>
+                          <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs">Stock: {selectedFromShop === 'Master' ? 'N/A' : (item.stocks[selectedFromShop] || 0)}</span>
                         </button>
                       ))}
                     </div>
@@ -196,17 +196,17 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
 
                 <div className="space-y-2">
                   {cart.map(item => (
-                    <div key={item.id} className="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <div key={item.id} className="flex items-center gap-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">
                       <div className="flex-grow">
-                        <p className="font-bold text-slate-800 text-sm">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 uppercase font-bold">{item.sku}</p>
+                        <p className="font-bold text-slate-800 dark:text-white text-sm">{item.name}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase font-bold">{item.sku}</p>
                       </div>
-                      <div className="flex items-center gap-3 bg-white px-2 py-1 rounded-xl border border-slate-100">
-                        <button type="button" onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 text-slate-400"><i className="fa-solid fa-minus text-xs"></i></button>
-                        <span className="w-6 text-center font-black text-slate-800 text-xs">{item.quantity}</span>
-                        <button type="button" onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 text-slate-400"><i className="fa-solid fa-plus text-xs"></i></button>
+                      <div className="flex items-center gap-3 bg-white dark:bg-slate-700 px-2 py-1 rounded-xl border border-slate-100 dark:border-slate-600">
+                        <button type="button" onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 text-slate-400 dark:text-slate-500"><i className="fa-solid fa-minus text-xs"></i></button>
+                        <span className="w-6 text-center font-black text-slate-800 dark:text-white text-xs">{item.quantity}</span>
+                        <button type="button" onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 text-slate-400 dark:text-slate-500"><i className="fa-solid fa-plus text-xs"></i></button>
                       </div>
-                      <button type="button" onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="text-slate-300 hover:text-rose-500"><i className="fa-solid fa-trash-can"></i></button>
+                      <button type="button" onClick={() => setCart(cart.filter(c => c.id !== item.id))} className="text-slate-300 dark:text-slate-600 hover:text-rose-500 dark:hover:text-rose-400"><i className="fa-solid fa-trash-can"></i></button>
                     </div>
                   ))}
                 </div>
@@ -215,10 +215,10 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
           </div>
         )}
 
-        <div className={`flex-1 bg-slate-100 p-8 flex flex-col items-center justify-start overflow-hidden relative h-full`}>
-           <div className="w-full flex justify-between items-center mb-6">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Transfer Note Preview</h4>
-              <button onClick={onClose} className="p-2 hover:bg-white rounded-full text-slate-400 shadow-sm"><i className="fa-solid fa-xmark text-xl"></i></button>
+        <div className={`flex-1 bg-slate-100 dark:bg-slate-950 p-8 flex flex-col items-center justify-start overflow-hidden relative h-full transition-colors`}>
+           <div className="w-full flex justify-between items-center mb-6 no-print">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 dark:text-slate-500">Transfer Note Preview</h4>
+              <button onClick={onClose} className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-full text-slate-400 dark:text-slate-500 shadow-sm transition-colors"><i className="fa-solid fa-xmark text-xl"></i></button>
            </div>
 
            <div className="bg-white w-full max-w-[340px] shadow-2xl p-6 flex flex-col font-mono text-[11px] text-black rounded-sm relative overflow-y-auto max-h-[75vh] scrollbar-hide">
@@ -274,15 +274,15 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
            </div>
 
            {!isViewOnly && (
-             <div className="w-full max-w-[340px] mt-8">
-               <button onClick={handleFinalize} disabled={isSubmitting} className="w-full py-4 bg-black text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-slate-900 transition-all flex items-center justify-center gap-3">
+             <div className="w-full max-w-[340px] mt-8 no-print">
+               <button onClick={handleFinalize} disabled={isSubmitting} className="w-full py-4 bg-black dark:bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-slate-900 dark:hover:bg-indigo-700 transition-all flex items-center justify-center gap-3">
                  <i className="fa-solid fa-file-shield"></i> Validate Transfer
                </button>
              </div>
            )}
 
            {isViewOnly && (
-             <button onClick={() => window.print()} className="w-full max-w-[340px] mt-8 py-3 bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2">
+             <button onClick={() => window.print()} className="w-full max-w-[340px] mt-8 py-3 bg-slate-800 dark:bg-indigo-600 text-white rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-2 no-print">
                <i className="fa-solid fa-print"></i> Print Note
              </button>
            )}

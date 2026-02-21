@@ -182,23 +182,23 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
               </div>
 
               {/* Receipt Linking Section */}
-              <div className="space-y-3 p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100">
-                <label className="text-[10px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+              <div className="space-y-3 p-5 bg-indigo-50/50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
+                <label className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                    <i className="fa-solid fa-link"></i> 1. Link Sales Receipt
                 </label>
                 <div className="relative">
                   <input 
-                    className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl font-bold text-xs focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm" 
+                    className="w-full px-4 py-3 bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900/50 rounded-xl font-bold text-xs text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none shadow-sm" 
                     placeholder="Search Receipt #..." 
                     value={receiptSearchQuery} 
                     onChange={e => {setReceiptSearchQuery(e.target.value); setIsReceiptDropdownOpen(true);}}
                   />
                   {isReceiptDropdownOpen && filteredReceipts.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-slate-100 rounded-2xl shadow-2xl z-30 max-h-40 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl shadow-2xl z-30 max-h-40 overflow-y-auto">
                        {filteredReceipts.map(txn => (
-                         <button key={txn.id} onClick={() => linkReceipt(txn)} className="w-full text-left p-3 hover:bg-indigo-50 border-b last:border-0">
-                            <p className="text-[10px] font-black text-slate-900">REC: {txn.receiptNumber}</p>
-                            <p className="text-[8px] text-slate-400 font-bold uppercase">Customer: {txn.customerName} • MUR {txn.total.toFixed(2)}</p>
+                         <button key={txn.id} onClick={() => linkReceipt(txn)} className="w-full text-left p-3 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border-b last:border-0 border-slate-50 dark:border-slate-700">
+                            <p className="text-[10px] font-black text-slate-900 dark:text-white">REC: {txn.receiptNumber}</p>
+                            <p className="text-[8px] text-slate-400 dark:text-slate-500 font-bold uppercase">Customer: {txn.customerName} • MUR {txn.total.toFixed(2)}</p>
                          </button>
                        ))}
                     </div>
@@ -214,55 +214,55 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
               {/* Form Metadata */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase">Serial No (VP/...)</label>
-                  <input className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm" value={serialNo} onChange={e => setSerialNo(e.target.value)} placeholder="VP/..." />
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Serial No (VP/...)</label>
+                  <input className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-900 dark:text-white" value={serialNo} onChange={e => setSerialNo(e.target.value)} placeholder="VP/..." />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] font-black text-slate-400 uppercase">Salesperson</label>
-                  <input className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-sm" value={salespersonName} onChange={e => setSalespersonName(e.target.value)} />
+                  <label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Salesperson</label>
+                  <input className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm text-slate-900 dark:text-white" value={salespersonName} onChange={e => setSalespersonName(e.target.value)} />
                 </div>
               </div>
 
               {/* Visitor Passport Section */}
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                <h4 className="text-[11px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2">
+              <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-[11px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest flex items-center gap-2">
                    <i className="fa-solid fa-passport"></i> 2. Visitor Passport Info
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
-                  <input placeholder="Surname" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={visitor.surname} onChange={e => setVisitor({...visitor, surname: e.target.value})} />
-                  <input placeholder="Other Names" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={visitor.otherNames} onChange={e => setVisitor({...visitor, otherNames: e.target.value})} />
-                  <input placeholder="Nationality" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={visitor.nationality} onChange={e => setVisitor({...visitor, nationality: e.target.value})} />
-                  <input placeholder="Passport No" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase" value={visitor.passportNo} onChange={e => setVisitor({...visitor, passportNo: e.target.value})} />
+                  <input placeholder="Surname" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={visitor.surname} onChange={e => setVisitor({...visitor, surname: e.target.value})} />
+                  <input placeholder="Other Names" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={visitor.otherNames} onChange={e => setVisitor({...visitor, otherNames: e.target.value})} />
+                  <input placeholder="Nationality" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={visitor.nationality} onChange={e => setVisitor({...visitor, nationality: e.target.value})} />
+                  <input placeholder="Passport No" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold uppercase text-slate-900 dark:text-white" value={visitor.passportNo} onChange={e => setVisitor({...visitor, passportNo: e.target.value})} />
                   
                   <div className="col-span-2 space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Passport Date of Issue</label>
-                    <input type="date" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={visitor.dateOfIssue} onChange={e => setVisitor({...visitor, dateOfIssue: e.target.value})} />
+                    <label className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Passport Date of Issue</label>
+                    <input type="date" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={visitor.dateOfIssue} onChange={e => setVisitor({...visitor, dateOfIssue: e.target.value})} />
                   </div>
 
                   <div className="col-span-2 space-y-1">
-                    <label className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Passport Date of Expiry</label>
-                    <input type="date" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={visitor.dateOfExpiry} onChange={e => setVisitor({...visitor, dateOfExpiry: e.target.value})} />
+                    <label className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Passport Date of Expiry</label>
+                    <input type="date" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={visitor.dateOfExpiry} onChange={e => setVisitor({...visitor, dateOfExpiry: e.target.value})} />
                   </div>
                 </div>
               </div>
 
               {/* Contact & Logistics Section */}
-              <div className="space-y-4 pt-4 border-t border-slate-100">
-                <h4 className="text-[11px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+              <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h4 className="text-[11px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                    <i className="fa-solid fa-envelope"></i> 3. Contact & Logistics
                 </h4>
                 <div className="space-y-3">
-                  <input placeholder="Email Address" className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
-                  <textarea placeholder="Permanent Home Address (Include Country)" rows={2} className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold resize-none" value={visitor.permanentAddress} onChange={e => setVisitor({...visitor, permanentAddress: e.target.value})} />
+                  <input placeholder="Email Address" className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
+                  <textarea placeholder="Permanent Home Address (Include Country)" rows={2} className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white resize-none" value={visitor.permanentAddress} onChange={e => setVisitor({...visitor, permanentAddress: e.target.value})} />
                   <div className="grid grid-cols-2 gap-3">
-                    <input placeholder="Flight No." className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold uppercase" value={visitor.flightNo} onChange={e => setVisitor({...visitor, flightNo: e.target.value})} />
-                    <input type="date" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold" value={visitor.departureDate} onChange={e => setVisitor({...visitor, departureDate: e.target.value})} />
+                    <input placeholder="Flight No." className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold uppercase text-slate-900 dark:text-white" value={visitor.flightNo} onChange={e => setVisitor({...visitor, flightNo: e.target.value})} />
+                    <input type="date" className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" value={visitor.departureDate} onChange={e => setVisitor({...visitor, departureDate: e.target.value})} />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="p-8 border-t border-slate-100 bg-white">
+            <div className="p-8 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
               <button onClick={handleFinalize} disabled={isSubmitting || cart.length === 0} className="w-full py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-emerald-700 transition-all flex items-center justify-center gap-3 disabled:opacity-50">
                 Finalize Refund Form
               </button>
@@ -270,10 +270,10 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
           </div>
         )}
 
-        <div className={`flex-1 bg-slate-200 p-8 flex flex-col items-center justify-start overflow-y-auto h-full scrollbar-hide`}>
+        <div className={`flex-1 bg-slate-200 dark:bg-slate-950 p-8 flex flex-col items-center justify-start overflow-y-auto h-full scrollbar-hide`}>
            <div className="w-full flex justify-between items-center mb-6 no-print">
-              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Official Replica Preview</h4>
-              <button onClick={onClose} className="p-2 hover:bg-white rounded-full text-slate-500 shadow-sm"><i className="fa-solid fa-xmark text-xl"></i></button>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500 dark:text-slate-400">Official Replica Preview</h4>
+              <button onClick={onClose} className="p-2 hover:bg-white dark:hover:bg-slate-800 rounded-full text-slate-500 dark:text-slate-400 shadow-sm"><i className="fa-solid fa-xmark text-xl"></i></button>
            </div>
 
            <div className="bg-white w-full max-w-[21cm] p-[0.8cm] text-black font-sans text-[9px] leading-tight border border-slate-400 shadow-2xl print:shadow-none print:border-none print:m-0 print:p-[0.5cm]">

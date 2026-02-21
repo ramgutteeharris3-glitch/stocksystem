@@ -10,6 +10,7 @@ import ItemHistoryModal from './components/ItemHistoryModal';
 import ReceiptModal from './components/ReceiptModal';
 import TransferModal from './components/TransferModal';
 import VatRefundModal from './components/VatRefundModal';
+import ConfirmModal from './components/ConfirmModal';
 import TransactionTracker from './components/TransactionTracker';
 import MovementTracker from './components/MovementTracker';
 import SalesLedger from './components/SalesLedger';
@@ -55,6 +56,17 @@ const App: React.FC = () => {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [confirmConfig, setConfirmConfig] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {}
+  });
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('theme');
     if (saved) return saved === 'dark';
@@ -482,6 +494,87 @@ const App: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleClearShopStock = () => {
+    if (currentShop === 'Master') {
+      alert("Please select a specific shop terminal to clear its stock. Global clear is restricted for safety.");
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Clear Shop Stock',
+      message: `⚠️ CRITICAL ACTION: Are you sure you want to PERMANENTLY DELETE all stock records for the "${currentShop}" terminal? This will set all quantities to zero for this location. This action cannot be undone.`,
+      onConfirm: () => {
+        const timestamp = new Date().toISOString();
+        const movementsToCreate: StockMovement[] = [];
+        
+        const updatedItems = items.map(item => {
+          const oldStock = Number(item.stocks?.[currentShop]) || 0;
+          if (oldStock === 0) return item;
+
+          const newStocks = { ...item.stocks, [currentShop]: 0 };
+          
+          movementsToCreate.push({
+            id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+            itemId: item.id,
+            itemName: item.name,
+            sku: item.sku,
+            shop: currentShop,
+            type: 'ADJUST',
+            quantity: -oldStock,
+            date: timestamp,
+            note: 'BULK CLEAR SHOP STOCK'
+          });
+          
+          return { ...item, stocks: newStocks, lastUpdated: timestamp };
+        });
+
+        if (movementsToCreate.length > 0) {
+          setItems(updatedItems);
+          setMovements(prev => [...movementsToCreate, ...prev]);
+          alert(`Success: Cleared stock for ${movementsToCreate.length} items at ${currentShop}.`);
+        } else {
+          alert(`No items with active stock were found at ${currentShop}.`);
+        }
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const handleClearMovementLog = () => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Clear Movement Log',
+      message: '⚠️ Are you sure you want to PERMANENTLY DELETE all records from the movement log? This action cannot be undone and will remove all audit history.',
+      onConfirm: () => {
+        setMovements([]);
+        alert("Movement log has been cleared.");
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const handleClearMasterInventory = () => {
+    if (currentShop !== 'Master') {
+      alert("Master inventory can only be cleared from the Master terminal.");
+      return;
+    }
+
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Wipe Entire Database',
+      message: `🚨 EXTREME ACTION: You are about to PERMANENTLY DELETE the entire Master Price List and ALL stock records across ALL shops. This will wipe the database clean. Are you absolutely sure?`,
+      onConfirm: () => {
+        setItems([]);
+        setMovements([]);
+        setTransactions([]);
+        setCustomers([]);
+        alert("Database has been fully cleared.");
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
   const handleEditTransaction = (txn: Transaction) => {
     setIsViewOnly(false);
     setEditingTransaction(txn);
@@ -591,6 +684,8 @@ const App: React.FC = () => {
                   onEdit={handleEditItem} 
                   onDelete={(id) => setItems(prev => prev.filter(i => i.id !== id))} 
                   onDownload={handleDownloadStock}
+                  onClearStock={handleClearShopStock}
+                  onClearMaster={handleClearMasterInventory}
                   onViewHistory={(item) => { setSelectedHistoryItem(item); setIsItemHistoryOpen(true); }}
                 />
               </div>
@@ -654,7 +749,12 @@ const App: React.FC = () => {
         ) : activeTab === 'customers' ? (
           <CustomerList customers={customers} />
         ) : (
-          <MovementTracker movements={movements} initialShop={currentShop} onViewReference={handleViewReference} />
+          <MovementTracker 
+            movements={movements} 
+            initialShop={currentShop} 
+            onViewReference={handleViewReference} 
+            onClearLog={handleClearMovementLog}
+          />
         )}
       </main>
 
@@ -681,6 +781,16 @@ const App: React.FC = () => {
       {isVatRefundOpen && (
         <VatRefundModal items={items} transactions={transactions} initialShop={currentShop} initialTransaction={editingTransaction} isViewOnly={isViewOnly} onIssue={handleIssueDocument} onClose={() => { setIsVatRefundOpen(false); setIsViewOnly(false); setEditingTransaction(undefined); }} />
       )}
+
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        confirmText="Confirm Action"
+        cancelText="Cancel"
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

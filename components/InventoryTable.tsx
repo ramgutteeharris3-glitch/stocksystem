@@ -8,10 +8,12 @@ interface InventoryTableProps {
   onEdit: (item: InventoryItem) => void;
   onDelete: (id: string) => void;
   onDownload: () => void;
+  onClearStock: () => void;
+  onClearMaster: () => void;
   onViewHistory: (item: InventoryItem) => void;
 }
 
-const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onEdit, onDelete, onDownload, onViewHistory }) => {
+const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onEdit, onDelete, onDownload, onClearStock, onClearMaster, onViewHistory }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [hideZeroStock, setHideZeroStock] = useState(true);
 
@@ -67,6 +69,22 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
           >
             <i className="fa-solid fa-file-csv"></i> Download Stock
           </button>
+
+          {currentShop !== 'Master' ? (
+            <button 
+              onClick={onClearStock}
+              className="no-print flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 dark:shadow-none"
+            >
+              <i className="fa-solid fa-broom"></i> Clear Shop Stock
+            </button>
+          ) : (
+            <button 
+              onClick={onClearMaster}
+              className="no-print flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 dark:shadow-none"
+            >
+              <i className="fa-solid fa-dumpster-fire"></i> Clear Master List
+            </button>
+          )}
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4 no-print">
