@@ -13,7 +13,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
 
   const filtered = useMemo(() => {
     return transactions.filter(t => {
-      const isShopMatch = currentShop === 'Master' || t.shop === currentShop || t.toShop === currentShop;
+      const isShopMatch = currentShop === 'Global' || t.shop === currentShop || t.toShop === currentShop;
       const isSearchMatch = 
         t.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
         (t.deliveryNoteNumber && t.deliveryNoteNumber.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -26,7 +26,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
   }, [transactions, currentShop, searchTerm]);
 
   const stats = useMemo(() => {
-    const relevant = transactions.filter(t => currentShop === 'Master' || t.shop === currentShop || t.toShop === currentShop);
+    const relevant = transactions.filter(t => currentShop === 'Global' || t.shop === currentShop || t.toShop === currentShop);
     const revenue = relevant.reduce((acc, t) => acc + (t.type === 'RECEIPT' ? t.total : 0), 0);
     const transferCount = relevant.filter(t => t.type !== 'RECEIPT').length;
     return { revenue, count: relevant.length, transferCount };

@@ -15,6 +15,8 @@ import TransactionTracker from './components/TransactionTracker';
 import MovementTracker from './components/MovementTracker';
 import SalesLedger from './components/SalesLedger';
 import CustomerList from './components/CustomerList';
+import NotificationCenter from './components/NotificationCenter';
+import ShopComparison from './components/ShopComparison';
 import { analyzeInventory } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -42,8 +44,8 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers'>('inventory');
-  const [currentShop, setCurrentShop] = useState<ShopName>('Master');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications' | 'comparison'>('inventory');
+  const [currentShop, setCurrentShop] = useState<ShopName>('Global');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
@@ -73,6 +75,14 @@ const App: React.FC = () => {
     return window.matchMedia('(prefers-color-scheme: dark)').matches;
   });
 
+  const pendingNotificationCount = useMemo(() => {
+    return transactions.filter(t => {
+      if (t.type === 'RECEIPT' && !t.invoiceNumber) return true;
+      if (t.type === 'DELIVERY_NOTE' && !t.transferNoteNumber) return true;
+      return false;
+    }).length;
+  }, [transactions]);
+
   useEffect(() => {
     localStorage.setItem('inventory_data_v3', JSON.stringify(items));
   }, [items]);
@@ -100,11 +110,11 @@ const App: React.FC = () => {
   }, [customers]);
 
   const stats = useMemo<InventoryStats>(() => {
-    const isMaster = currentShop === 'Master';
+    const isGlobal = currentShop === 'Global';
     
     const filteredItems = items.map(item => ({
       ...item,
-      currentQuantity: isMaster 
+      currentQuantity: isGlobal 
         ? Object.values(item.stocks || {}).reduce((a: number, b: number) => a + (Number(b) || 0), 0)
         : (Number(item.stocks?.[currentShop]) || 0)
     }));
@@ -449,12 +459,12 @@ const App: React.FC = () => {
   };
 
   const handleDownloadStock = () => {
-    const isMaster = currentShop === 'Master';
+    const isGlobal = currentShop === 'Global';
     
     // Filter and sort items
     const exportItems = items
       .map(item => {
-        const qty = isMaster 
+        const qty = isGlobal 
           ? Object.values(item.stocks || {}).reduce((a: number, b: number) => a + (Number(b) || 0), 0)
           : (Number(item.stocks?.[currentShop]) || 0);
         return { ...item, currentQty: qty };
@@ -495,7 +505,7 @@ const App: React.FC = () => {
   };
 
   const handleClearShopStock = () => {
-    if (currentShop === 'Master') {
+    if (currentShop === 'Global') {
       alert("Please select a specific shop terminal to clear its stock. Global clear is restricted for safety.");
       return;
     }
@@ -555,8 +565,8 @@ const App: React.FC = () => {
   };
 
   const handleClearMasterInventory = () => {
-    if (currentShop !== 'Master') {
-      alert("Master inventory can only be cleared from the Master terminal.");
+    if (currentShop !== 'Global') {
+      alert("The entire database can only be cleared from the Global terminal.");
       return;
     }
 
@@ -638,6 +648,20 @@ const App: React.FC = () => {
              <button onClick={() => setActiveTab('movements')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'movements' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Log
              </button>
+             <button onClick={() => setActiveTab('comparison')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'comparison' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+               Comparison
+             </button>
+             <button 
+               onClick={() => setActiveTab('notifications')} 
+               className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all relative ${activeTab === 'notifications' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
+             >
+               Alerts
+               {pendingNotificationCount > 0 && (
+                 <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-600 text-white text-[8px] flex items-center justify-center rounded-full border-2 border-white dark:border-slate-800 animate-pulse">
+                   {pendingNotificationCount}
+                 </span>
+               )}
+             </button>
           </div>
 
           <div className="hidden md:flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1 border border-slate-200/50 dark:border-slate-700/50">
@@ -660,7 +684,7 @@ const App: React.FC = () => {
       <div className="bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 px-8 py-2 overflow-x-auto scrollbar-hide flex gap-2 shop-tabs transition-colors">
         {SHOPS.map(shop => (
           <button key={shop} onClick={() => setCurrentShop(shop)} className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${currentShop === shop ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100 dark:shadow-none' : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800'}`}>
-            {shop === 'Master' ? <i className="fa-solid fa-globe mr-2"></i> : <i className="fa-solid fa-shop mr-2 text-[10px] opacity-60"></i>}
+            {shop === 'Global' ? <i className="fa-solid fa-globe mr-2"></i> : <i className="fa-solid fa-shop mr-2 text-[10px] opacity-60"></i>}
             {shop}
           </button>
         ))}
@@ -670,7 +694,7 @@ const App: React.FC = () => {
         {activeTab === 'inventory' ? (
           <>
             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 no-print">
-              <StatCard title={currentShop === 'Master' ? "Total Assets" : `${currentShop} Value`} value={`MUR ${stats.totalValue.toLocaleString()}`} icon="fa-solid fa-coins" colorClass="bg-indigo-50 text-indigo-600" />
+              <StatCard title={currentShop === 'Global' ? "Total Assets" : `${currentShop} Value`} value={`MUR ${stats.totalValue.toLocaleString()}`} icon="fa-solid fa-coins" colorClass="bg-indigo-50 text-indigo-600" />
               <StatCard title="Total Units" value={stats.totalItems} icon="fa-solid fa-warehouse" colorClass="bg-emerald-50 text-emerald-600" />
               <StatCard title="Product Range" value={items.length} icon="fa-solid fa-barcode" colorClass="bg-slate-100 text-slate-600" />
               <StatCard title="Low Stock" value={stats.lowStockCount} icon="fa-solid fa-bell-concierge" colorClass="bg-rose-50 text-rose-600" />
@@ -685,7 +709,7 @@ const App: React.FC = () => {
                   onDelete={(id) => setItems(prev => prev.filter(i => i.id !== id))} 
                   onDownload={handleDownloadStock}
                   onClearStock={handleClearShopStock}
-                  onClearMaster={handleClearMasterInventory}
+                  onClearGlobal={handleClearMasterInventory}
                   onViewHistory={(item) => { setSelectedHistoryItem(item); setIsItemHistoryOpen(true); }}
                 />
               </div>
@@ -748,6 +772,10 @@ const App: React.FC = () => {
           <SalesLedger transactions={transactions} currentShop={currentShop} />
         ) : activeTab === 'customers' ? (
           <CustomerList customers={customers} />
+        ) : activeTab === 'notifications' ? (
+          <NotificationCenter transactions={transactions} movements={movements} currentShop={currentShop} onEditTransaction={handleEditTransaction} />
+        ) : activeTab === 'comparison' ? (
+          <ShopComparison items={items} currentShop={currentShop} />
         ) : (
           <MovementTracker 
             movements={movements} 

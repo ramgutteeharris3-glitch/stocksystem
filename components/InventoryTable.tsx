@@ -18,7 +18,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
   const [hideZeroStock, setHideZeroStock] = useState(true);
 
   const getStockCount = (item: InventoryItem) => {
-    if (currentShop === 'Master') {
+    if (currentShop === 'Global') {
       return Object.values(item.stocks || {}).reduce((a: number, b: number) => a + (Number(b) || 0), 0);
     }
     return Number(item.stocks?.[currentShop]) || 0;
@@ -48,7 +48,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
             <h2 className="text-xl font-black text-slate-800 dark:text-white uppercase tracking-tight">Inventory Terminal</h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[9px] font-black rounded-md uppercase tracking-widest border border-indigo-100 dark:border-indigo-800">
-                {currentShop === 'Master' ? 'Global Network' : `Loc: ${currentShop}`}
+                {currentShop === 'Global' ? 'Global Network' : `Loc: ${currentShop}`}
               </span>
               <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
                 Showing {filteredItems.length} of {items.length} total
@@ -70,7 +70,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
             <i className="fa-solid fa-file-csv"></i> Download Stock
           </button>
 
-          {currentShop !== 'Master' ? (
+          {currentShop !== 'Global' ? (
             <button 
               onClick={onClearStock}
               className="no-print flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 dark:shadow-none"
@@ -82,7 +82,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
               onClick={onClearMaster}
               className="no-print flex items-center gap-2 px-4 py-2 bg-rose-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-rose-700 transition-all shadow-lg shadow-rose-100 dark:shadow-none"
             >
-              <i className="fa-solid fa-dumpster-fire"></i> Clear Master List
+              <i className="fa-solid fa-dumpster-fire"></i> Clear Global Database
             </button>
           )}
         </div>
@@ -120,7 +120,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
             <tr>
               <th className="px-8 py-6">Identity</th>
               <th className="px-8 py-6">Product Code</th>
-              <th className="px-8 py-6">{currentShop === 'Master' ? 'Global Stock' : 'Shop Stock'}</th>
+              <th className="px-8 py-6">{currentShop === 'Global' ? 'Global Stock' : 'Shop Stock'}</th>
               <th className="px-8 py-6">Pricing Index</th>
               <th className="px-8 py-6 text-right no-print">Operations</th>
             </tr>
@@ -169,7 +169,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
                           </div>
                         )}
                       </div>
-                      {currentShop === 'Master' && hasDistribution && (
+                      {currentShop === 'Global' && hasDistribution && (
                         <p className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase mt-1 tracking-widest">
                           Distributed in {Object.keys(item.stocks || {}).length} hubs
                         </p>

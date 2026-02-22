@@ -14,7 +14,7 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) 
     // 1. Filter transactions by date and shop (only Receipts and VAT Refunds contribute to sales revenue)
     const dayTransactions = transactions.filter(t => {
       const isDateMatch = t.date.startsWith(selectedDate);
-      const isShopMatch = currentShop === 'Master' || t.shop === currentShop;
+      const isShopMatch = currentShop === 'Global' || t.shop === currentShop;
       const isSalesType = t.type === 'RECEIPT' || t.type === 'VAT_REFUND';
       return isDateMatch && isShopMatch && isSalesType;
     });

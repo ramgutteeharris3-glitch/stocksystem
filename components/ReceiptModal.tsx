@@ -89,7 +89,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
   const handleFinalize = () => {
     if (isViewOnly || isSubmitting) return;
     if (cart.length === 0) return alert("Cart is empty.");
-    if (selectedShop === 'Master') return alert("Please select a specific shop terminal, not 'Master'.");
+    if (selectedShop === 'Global') return alert("Please select a specific shop terminal, not 'Global'.");
 
     setIsSubmitting(true);
     
@@ -242,7 +242,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
                 <i className="fa-solid fa-shop"></i> Terminal Selection
               </label>
               <div className="grid grid-cols-4 gap-2">
-                {SHOPS.filter(s => s !== 'Master').map(shop => (
+                {SHOPS.filter(s => s !== 'Global').map(shop => (
                   <button 
                     key={shop} 
                     onClick={() => setSelectedShop(shop)}

@@ -128,7 +128,7 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
     if (!serialNo.trim()) return alert("Serial Number (VP) is mandatory.");
     if (!visitor.passportNo) return alert("Passport Number is mandatory.");
     if (!visitor.permanentAddress) return alert("Permanent Address is required.");
-    if (selectedShop === 'Master') return alert("Please select a specific shop terminal.");
+    if (selectedShop === 'Global') return alert("Please select a specific shop terminal.");
 
     setIsSubmitting(true);
     onIssue({
@@ -169,7 +169,7 @@ const VatRefundModal: React.FC<VatRefundModalProps> = ({ items, transactions, in
                    <i className="fa-solid fa-shop"></i> Processing Terminal
                 </label>
                 <div className="grid grid-cols-3 gap-2">
-                  {SHOPS.filter(s => s !== 'Master').map(shop => (
+                  {SHOPS.filter(s => s !== 'Global').map(shop => (
                     <button 
                       key={shop} 
                       onClick={() => setSelectedShop(shop)}

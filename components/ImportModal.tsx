@@ -14,7 +14,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
   const [rawText, setRawText] = useState('');
   const [isParsing, setIsParsing] = useState(false);
   const [previewItems, setPreviewItems] = useState<Partial<InventoryItem>[]>([]);
-  const [targetShop, setTargetShop] = useState<ShopName>(initialShop === 'Master' ? 'Plouis' : initialShop);
+  const [targetShop, setTargetShop] = useState<ShopName>(initialShop === 'Global' ? 'Plouis' : initialShop);
   const [mode, setMode] = useState<ImportMode>('MASTER_PRICELIST');
   const [skippedLines, setSkippedLines] = useState<{ line: string; reason: string }[]>([]);
 

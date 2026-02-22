@@ -110,6 +110,7 @@ export interface AIInsight {
 }
 
 export const SHOPS = [
+  'Global',
   'Master',
   'Plouis',
   'Bagatelle',

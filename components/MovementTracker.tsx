@@ -23,7 +23,7 @@ const MovementTracker: React.FC<MovementTrackerProps> = ({ movements, initialSho
     return movements.filter(m => {
       const movementDate = m.date.split('T')[0];
       const isWithinRange = movementDate >= fromDate && movementDate <= toDate;
-      const isSameShop = selectedShop === 'Master' || m.shop === selectedShop;
+      const isSameShop = selectedShop === 'Global' || m.shop === selectedShop;
       const matchesSearch = m.itemName.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            m.sku.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            (m.referenceId && m.referenceId.toLowerCase().includes(searchTerm.toLowerCase()));

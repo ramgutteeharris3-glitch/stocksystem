@@ -146,7 +146,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
                 <div className="space-y-4">
                   <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Source Shop (OUT)</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {SHOPS.filter(s => s !== 'Master').map(shop => (
+                    {SHOPS.filter(s => s !== 'Global').map(shop => (
                       <button key={shop} onClick={() => setSelectedFromShop(shop)} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedFromShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                         {shop}
                       </button>
@@ -156,7 +156,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
                 <div className="space-y-4">
                   <label className="block text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">Destination Shop (IN)</label>
                   <div className="grid grid-cols-2 gap-2">
-                    {SHOPS.filter(s => s !== 'Master').map(shop => (
+                    {SHOPS.filter(s => s !== 'Global').map(shop => (
                       <button key={shop} onClick={() => setSelectedToShop(shop)} className={`px-3 py-2 rounded-xl text-[10px] font-black border transition-all ${selectedToShop === shop ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700'}`}>
                         {shop}
                       </button>
