@@ -70,19 +70,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
   const updateCartItem = (id: string, field: keyof CartItem, value: number | string) => {
     if (isViewOnly) return;
     setCart(prev => {
-      const newCart = prev.map(item => item.id === id ? { ...item, [field]: value } : item);
-      
-      // If quantity of a parent item changed, update its children
-      if (field === 'quantity') {
-        return newCart.map(item => {
-          if (item.parentId === id) {
-            return { ...item, quantity: Number(value) };
-          }
-          return item;
-        });
-      }
-      
-      return newCart;
+      return prev.map(item => item.id === id ? { ...item, [field]: value } : item);
     });
   };
 
@@ -150,9 +138,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
       
       if (existing) {
         // Increment quantity for existing item
-        const newCart = prev.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c);
-        // Sync linked offer quantities to match the new parent quantity
-        return newCart.map(c => c.parentId === item.id ? { ...c, quantity: (newCart.find(p => p.id === item.id)?.quantity || 1) } : c);
+        return prev.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c);
       } else {
         // Add new item
         const newItemId = item.id;
@@ -167,23 +153,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
           sku: item.sku 
         };
 
-        const updatedCart = [...prev, newCartItem];
-
-        // Auto-populate offer if present in the product definition
-        if (item.offers && item.offers.trim()) {
-          const offerItem: CartItem = {
-            id: `offer-${Math.random().toString(36).substr(2, 9)}`,
-            name: `GIFT: ${item.offers}`,
-            price: 0,
-            originalPrice: 0,
-            quantity: 1,
-            sku: `OFFER-${item.sku}`,
-            parentId: newItemId
-          };
-          updatedCart.push(offerItem);
-        }
-
-        return updatedCart;
+        return [...prev, newCartItem];
       }
     });
 

@@ -16,7 +16,6 @@ import MovementTracker from './components/MovementTracker';
 import SalesLedger from './components/SalesLedger';
 import CustomerList from './components/CustomerList';
 import NotificationCenter from './components/NotificationCenter';
-import ShopComparison from './components/ShopComparison';
 import { analyzeInventory } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -44,7 +43,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications' | 'comparison'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications'>('inventory');
   const [currentShop, setCurrentShop] = useState<ShopName>('Global');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -774,8 +773,6 @@ const App: React.FC = () => {
           <CustomerList customers={customers} />
         ) : activeTab === 'notifications' ? (
           <NotificationCenter transactions={transactions} movements={movements} currentShop={currentShop} onEditTransaction={handleEditTransaction} />
-        ) : activeTab === 'comparison' ? (
-          <ShopComparison items={items} currentShop={currentShop} />
         ) : (
           <MovementTracker 
             movements={movements} 
