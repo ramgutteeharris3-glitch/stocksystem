@@ -35,6 +35,7 @@ export interface TransactionItem {
   model?: string;
   brand?: string;
   invoiceNo?: string;
+  parentId?: string;
 }
 
 export type DocumentType = 'RECEIPT' | 'DELIVERY_NOTE' | 'WAREHOUSE_TRANSFER' | 'VAT_REFUND';

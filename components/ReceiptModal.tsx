@@ -11,6 +11,7 @@ interface CartItem {
   offers?: string;
   quantity: number;
   sku: string;
+  parentId?: string; // Link offered items to their parent
 }
 
 interface ReceiptModalProps {
@@ -36,7 +37,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
       promoPrice: i.promoPrice,
       offers: i.offers,
       quantity: i.quantity,
-      sku: i.sku || inv?.sku || 'N/A'
+      sku: i.sku || inv?.sku || 'N/A',
+      parentId: i.parentId
     };
   }) || []);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -67,7 +69,21 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
 
   const updateCartItem = (id: string, field: keyof CartItem, value: number | string) => {
     if (isViewOnly) return;
-    setCart(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+    setCart(prev => {
+      const newCart = prev.map(item => item.id === id ? { ...item, [field]: value } : item);
+      
+      // If quantity of a parent item changed, update its children
+      if (field === 'quantity') {
+        return newCart.map(item => {
+          if (item.parentId === id) {
+            return { ...item, quantity: Number(value) };
+          }
+          return item;
+        });
+      }
+      
+      return newCart;
+    });
   };
 
   const handleFinalize = () => {
@@ -96,7 +112,8 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
         quantity: c.quantity, 
         price: c.price,
         promoPrice: c.promoPrice,
-        offers: c.offers
+        offers: c.offers,
+        parentId: c.parentId
       })),
       shop: selectedShop,
       receiptNumber: finalReceiptNo,
@@ -124,25 +141,52 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
   }, [items, searchQuery, isViewOnly]);
 
   const addToCart = (item: InventoryItem) => {
-    const existing = cart.find(c => c.id === item.id);
     const itemPrice = Number(item.price) || 0;
     const itemPromo = (item.promoPrice && item.promoPrice > 0) ? Number(item.promoPrice) : null;
     const finalPrice = itemPromo !== null ? itemPromo : itemPrice;
 
-    if (existing) {
-      setCart(cart.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c));
-    } else {
-      setCart([...cart, { 
-        id: item.id, 
-        name: item.name, 
-        price: finalPrice, 
-        originalPrice: itemPrice,
-        promoPrice: itemPromo || undefined,
-        offers: item.offers,
-        quantity: 1, 
-        sku: item.sku 
-      }]);
-    }
+    setCart(prev => {
+      const existing = prev.find(c => c.id === item.id);
+      
+      if (existing) {
+        // Increment quantity for existing item
+        const newCart = prev.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c);
+        // Sync linked offer quantities to match the new parent quantity
+        return newCart.map(c => c.parentId === item.id ? { ...c, quantity: (newCart.find(p => p.id === item.id)?.quantity || 1) } : c);
+      } else {
+        // Add new item
+        const newItemId = item.id;
+        const newCartItem: CartItem = { 
+          id: newItemId, 
+          name: item.name, 
+          price: finalPrice, 
+          originalPrice: itemPrice,
+          promoPrice: itemPromo || undefined,
+          offers: item.offers,
+          quantity: 1, 
+          sku: item.sku 
+        };
+
+        const updatedCart = [...prev, newCartItem];
+
+        // Auto-populate offer if present in the product definition
+        if (item.offers && item.offers.trim()) {
+          const offerItem: CartItem = {
+            id: `offer-${Math.random().toString(36).substr(2, 9)}`,
+            name: `GIFT: ${item.offers}`,
+            price: 0,
+            originalPrice: 0,
+            quantity: 1,
+            sku: `OFFER-${item.sku}`,
+            parentId: newItemId
+          };
+          updatedCart.push(offerItem);
+        }
+
+        return updatedCart;
+      }
+    });
+
     setSearchQuery('');
     setIsDropdownOpen(false);
     
@@ -150,6 +194,20 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
     setTimeout(() => {
       searchInputRef.current?.focus();
     }, 10);
+  };
+
+  const addManualItem = () => {
+    const manualItem: CartItem = {
+      id: `manual-${Math.random().toString(36).substr(2, 9)}`,
+      name: searchQuery || 'New Item',
+      price: 0,
+      originalPrice: 0,
+      quantity: 1,
+      sku: 'MANUAL'
+    };
+    setCart([...cart, manualItem]);
+    setSearchQuery('');
+    setIsDropdownOpen(false);
   };
 
   const formatPrice = (val: number | undefined) => {
@@ -241,6 +299,11 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
                         </button>
                       );
                     })}
+                    {filteredSearch.length === 0 && (
+                      <button onClick={addManualItem} className="w-full text-left p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl transition-colors flex items-center gap-3 text-indigo-600 dark:text-indigo-400 font-black uppercase text-[10px] tracking-widest">
+                        <i className="fa-solid fa-plus-circle"></i> Add "{searchQuery}" as Manual Entry
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -279,7 +342,7 @@ const ReceiptModal: React.FC<ReceiptModalProps> = ({ items, transactions, initia
                             </span>
                           </div>
                         </div>
-                        <button onClick={() => setCart(cart.filter(it => it.id !== c.id))} className="text-slate-300 hover:text-rose-500 transition-colors p-1">
+                        <button onClick={() => setCart(cart.filter(it => it.id !== c.id && it.parentId !== c.id))} className="text-slate-300 hover:text-rose-500 transition-colors p-1">
                           <i className="fa-solid fa-trash-can"></i>
                         </button>
                       </div>

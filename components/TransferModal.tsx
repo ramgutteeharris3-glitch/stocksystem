@@ -47,27 +47,35 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
     return items.filter(item => {
       const nameMatch = item.name.toLowerCase().includes(searchQuery.toLowerCase());
       const skuMatch = item.sku.toLowerCase().includes(searchQuery.toLowerCase());
-      const stock = selectedFromShop === 'Master' 
-        ? Object.values(item.stocks).reduce((a: number, b: number) => a + b, 0)
-        : (item.stocks[selectedFromShop] || 0);
-      return (nameMatch || skuMatch) && stock > 0;
+      return (nameMatch || skuMatch);
     });
-  }, [items, searchQuery, selectedFromShop, isViewOnly]);
+  }, [items, searchQuery, isViewOnly]);
 
   const addToCart = (item: InventoryItem) => {
     if (isViewOnly) return;
-    const existing = cart.find(c => c.id === item.id);
-    const stock = selectedFromShop === 'Master' 
-      ? Object.values(item.stocks).reduce((a: number, b: number) => a + b, 0)
-      : (item.stocks[selectedFromShop] || 0);
-
-    if (existing) {
-      if (existing.quantity < stock) {
-        setCart(cart.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c));
+    
+    setCart(prev => {
+      const existing = prev.find(c => c.id === item.id);
+      if (existing) {
+        return prev.map(c => c.id === item.id ? { ...c, quantity: c.quantity + 1 } : c);
+      } else {
+        return [...prev, { id: item.id, name: item.name, price: item.price, quantity: 1, sku: item.sku }];
       }
-    } else {
-      setCart([...cart, { id: item.id, name: item.name, price: item.price, quantity: 1, sku: item.sku }]);
-    }
+    });
+
+    setSearchQuery('');
+    setIsDropdownOpen(false);
+  };
+
+  const addManualItem = () => {
+    const manualItem: CartItem = {
+      id: `manual-${Math.random().toString(36).substr(2, 9)}`,
+      name: searchQuery || 'New Item',
+      price: 0,
+      quantity: 1,
+      sku: 'MANUAL'
+    };
+    setCart(prev => [...prev, manualItem]);
     setSearchQuery('');
     setIsDropdownOpen(false);
   };
@@ -76,9 +84,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
     if (isViewOnly) return;
     setCart(cart.map(c => {
       if (c.id === id) {
-        const item = items.find(i => i.id === id);
-        const stock = item ? (selectedFromShop === 'Master' ? Object.values(item.stocks).reduce((a: number, b: number) => a + b, 0) : (item.stocks[selectedFromShop] || 0)) : 0;
-        const newQty = Math.max(1, Math.min(stock, c.quantity + delta));
+        const newQty = Math.max(1, c.quantity + delta);
         return { ...c, quantity: newQty };
       }
       return c;
@@ -108,7 +114,7 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
       toShop: selectedToShop,
       salesperson: staffName.trim() || 'N/A',
       customerName: `Transfer: ${selectedFromShop} -> ${selectedToShop}`,
-      items: cart.map(c => ({ itemId: c.id, name: c.name, sku: c.sku, quantity: c.quantity, price: c.price })),
+      items: cart.map(c => ({ itemId: c.id, name: c.name, sku: c.sku, quantity: c.quantity, price: c.price, parentId: (c as any).parentId })),
       subtotal: 0,
       total: 0,
       discount: 0,
@@ -190,6 +196,11 @@ const TransferModal: React.FC<TransferModalProps> = ({ items, transactions, init
                           <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs">Stock: {selectedFromShop === 'Master' ? 'N/A' : (item.stocks[selectedFromShop] || 0)}</span>
                         </button>
                       ))}
+                      {filteredSearch.length === 0 && (
+                        <button type="button" onClick={addManualItem} className="w-full text-left p-4 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 flex items-center gap-3 text-indigo-600 dark:text-indigo-400 font-black uppercase text-[10px] tracking-widest">
+                          <i className="fa-solid fa-plus-circle"></i> Add "{searchQuery}" as Manual Entry
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
