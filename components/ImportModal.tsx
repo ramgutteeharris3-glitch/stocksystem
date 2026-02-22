@@ -16,9 +16,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
   const [previewItems, setPreviewItems] = useState<Partial<InventoryItem>[]>([]);
   const [targetShop, setTargetShop] = useState<ShopName>(initialShop === 'Master' ? 'Plouis' : initialShop);
   const [mode, setMode] = useState<ImportMode>('MASTER_PRICELIST');
+  const [skippedLines, setSkippedLines] = useState<{ line: string; reason: string }[]>([]);
 
   const parseCleanNumber = (val: string | undefined): number => {
-    if (!val) return 0;
+    if (val === undefined || val === null || val.trim() === '') return 0;
     const cleaned = val.replace(/[^\d.-]/g, '');
     const num = parseFloat(cleaned);
     return isNaN(num) ? 0 : num;
@@ -27,20 +28,29 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
   const handleSmartPaste = async () => {
     if (!rawText.trim()) return;
     setIsParsing(true);
+    setSkippedLines([]);
     
     const lines = rawText.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
     const results: Partial<InventoryItem>[] = [];
+    const skipped: { line: string; reason: string }[] = [];
 
-    lines.forEach((line) => {
+    lines.forEach((line, index) => {
       // Split by comma, semicolon, or tab
       const parts = line.split(/[,;\t]/).map(p => p.trim());
-      if (parts.length < 2) return;
+      
+      if (parts.length < 2) {
+        skipped.push({ line: `Line ${index + 1}: ${line.substring(0, 30)}...`, reason: 'Insufficient columns (need at least 2)' });
+        return;
+      }
 
       // Header Detection
       const firstCol = parts[0].toUpperCase();
       const secondCol = (parts[1] || '').toUpperCase();
       const headerKeywords = ['SKU', 'ITEMCODE', 'CODE', 'PRODUCT', 'ITEM', 'DESCRIPTION', 'NAME', 'PRICE', 'QTY', 'QUANTITY', 'UNITPRICE'];
-      if (headerKeywords.some(key => firstCol === key || secondCol === key)) return;
+      if (headerKeywords.some(key => firstCol === key || secondCol === key)) {
+        skipped.push({ line: `Line ${index + 1}: ${line.substring(0, 30)}...`, reason: 'Header row detected' });
+        return;
+      }
 
       let sku = '';
       let name = '';
@@ -51,9 +61,10 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
 
       /**
        * SMART MULTI-COLUMN MAPPING
-       * Format A (6 Columns): SKU, Description, Qty, Price, PromoPrice, Offers
+       * Format A (6+ Columns): SKU, Description, Qty, Price, PromoPrice, Offers
        * Format B (2 Columns): Description, Value (Price or Qty)
        * Format C (3 Columns): SKU, Description, Value
+       * Format D (4-5 Columns): SKU, Description, Price, Qty, [Promo]
        */
       if (parts.length >= 6) {
         sku = parts[0].toUpperCase().replace(/\s+/g, '');
@@ -73,17 +84,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
         const val = parseCleanNumber(parts[2]);
         if (mode === 'MASTER_PRICELIST') price = val;
         else qty = Math.floor(val);
-      } else {
-        // Fallback for 4-5 columns
+      } else if (parts.length === 4 || parts.length === 5) {
         sku = parts[0].toUpperCase();
         name = parts[1];
-        const val = parseCleanNumber(parts[2]);
-        if (mode === 'MASTER_PRICELIST') price = val;
-        else qty = Math.floor(val);
-        if (parts[3]) promo = parseCleanNumber(parts[3]);
+        price = parseCleanNumber(parts[2]);
+        qty = Math.floor(parseCleanNumber(parts[3]));
+        if (parts[4]) promo = parseCleanNumber(parts[4]);
       }
 
-      if (!name && !sku) return;
+      if (!name && !sku) {
+        skipped.push({ line: `Line ${index + 1}: ${line.substring(0, 30)}...`, reason: 'Missing both Name and SKU' });
+        return;
+      }
 
       results.push({
         sku: sku || '',
@@ -99,6 +111,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
     });
 
     setPreviewItems(results);
+    setSkippedLines(skipped);
     setIsParsing(false);
   };
 
@@ -192,7 +205,32 @@ const ImportModal: React.FC<ImportModalProps> = ({ initialShop, onImport, onClos
                 <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full uppercase">{previewItems.length} Records</span>
               </div>
               
-              <div className="flex-grow overflow-y-auto p-6 scrollbar-hide">
+              <div className="flex-grow overflow-y-auto p-6 scrollbar-hide space-y-6">
+                {previewItems.length > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800 p-4 rounded-2xl flex items-start gap-3">
+                    <i className="fa-solid fa-circle-info text-amber-600 dark:text-amber-400 mt-0.5"></i>
+                    <p className="text-[10px] font-bold text-amber-800 dark:text-amber-300 leading-relaxed uppercase tracking-wide">
+                      Note: Items with 0 stock will be imported but may be hidden in the main table. Toggle "All Items" in the inventory view to see them.
+                    </p>
+                  </div>
+                )}
+
+                {skippedLines.length > 0 && (
+                  <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 p-4 rounded-2xl">
+                    <p className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <i className="fa-solid fa-triangle-exclamation"></i> Skipped {skippedLines.length} Lines
+                    </p>
+                    <div className="space-y-2">
+                      {skippedLines.map((s, i) => (
+                        <div key={i} className="flex justify-between items-center text-[9px] font-medium">
+                          <span className="text-slate-500 dark:text-slate-400 truncate max-w-[180px]">{s.line}</span>
+                          <span className="text-rose-500 dark:text-rose-400 font-black uppercase">{s.reason}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {previewItems.length > 0 ? (
                   <table className="w-full text-left border-separate border-spacing-y-2">
                     <thead>
