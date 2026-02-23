@@ -31,20 +31,6 @@ const MovementTracker: React.FC<MovementTrackerProps> = ({ movements, initialSho
     });
   }, [movements, fromDate, toDate, selectedShop, searchTerm]);
 
-  const summary = useMemo(() => {
-    let inwards = 0;
-    let outwards = 0;
-    filtered.forEach(m => {
-      if (m.type === 'IN') inwards += m.quantity;
-      if (m.type === 'OUT') outwards += m.quantity;
-      if (m.type === 'ADJUST') {
-          if (m.quantity > 0) inwards += m.quantity;
-          else outwards += Math.abs(m.quantity);
-      }
-    });
-    return { inwards, outwards };
-  }, [filtered]);
-
   const handleExportPDF = () => {
     window.print();
   };
@@ -118,20 +104,6 @@ const MovementTracker: React.FC<MovementTrackerProps> = ({ movements, initialSho
                </div>
             </div>
           </div>
-          
-          <div className="flex gap-4 lg:mb-1">
-             <div className="bg-emerald-50 dark:bg-emerald-900/20 px-6 py-5 rounded-[2rem] border border-emerald-100 dark:border-emerald-900/50 flex flex-col items-center min-w-[140px] shadow-sm transition-colors">
-                <i className="fa-solid fa-arrow-down-long text-emerald-400 dark:text-emerald-500 mb-2"></i>
-                <p className="text-[9px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest">Total Inward</p>
-                <p className="text-3xl font-black text-emerald-700 dark:text-emerald-300">{summary.inwards}</p>
-             </div>
-             <div className="bg-rose-50 dark:bg-rose-900/20 px-6 py-5 rounded-[2rem] border border-rose-100 dark:border-rose-900/50 flex flex-col items-center min-w-[140px] shadow-sm transition-colors">
-                <i className="fa-solid fa-arrow-up-long text-rose-400 dark:text-rose-500 mb-2"></i>
-                <p className="text-[9px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest">Total Outward</p>
-                <p className="text-3xl font-black text-rose-700 dark:text-rose-300">{summary.outwards}</p>
-             </div>
-          </div>
-        </div>
       </div>
 
       {/* Movement List */}
