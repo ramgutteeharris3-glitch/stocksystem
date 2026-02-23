@@ -1,7 +1,6 @@
 
 import express from "express";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
@@ -13,41 +12,9 @@ async function startServer() {
   app.use(express.json({ limit: '50mb' }));
   app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-  // Gemini AI Endpoint
+  // Gemini AI Endpoint (Moved to Frontend)
   app.post("/api/analyze", async (req, res) => {
-    try {
-      const { items } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY;
-
-      if (!apiKey) {
-        return res.status(500).json({ error: "GEMINI_API_KEY not configured on server" });
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
-      const model = "gemini-3-flash-preview";
-
-      const prompt = `
-        Analyze this inventory data and provide 3 actionable insights.
-        Data: ${JSON.stringify(items.map((i: any) => ({ name: i.name, stocks: i.stocks, price: i.price, min: i.minQuantity })))}
-        
-        Return the response as a JSON array of objects with this structure:
-        [{ "title": "string", "content": "string", "type": "warning" | "info" | "success" }]
-      `;
-
-      const result = await ai.models.generateContent({
-        model,
-        contents: [{ parts: [{ text: prompt }] }],
-        config: {
-          responseMimeType: "application/json"
-        }
-      });
-
-      const insights = JSON.parse(result.text || "[]");
-      res.json(insights);
-    } catch (error) {
-      console.error("Gemini Error:", error);
-      res.status(500).json({ error: "Failed to analyze inventory" });
-    }
+    res.status(410).json({ error: "Endpoint moved to client-side" });
   });
 
   // Vite middleware for development

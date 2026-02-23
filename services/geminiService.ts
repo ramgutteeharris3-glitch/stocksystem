@@ -1,24 +1,45 @@
 
+import { GoogleGenAI } from "@google/genai";
 import { InventoryItem, AIInsight, Category } from "../types";
+
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 /**
  * Local intelligence service that runs without network connectivity.
  * Replaces remote Gemini API calls with local analytical logic.
  */
-
 export const analyzeInventory = async (items: InventoryItem[]): Promise<AIInsight[]> => {
   try {
-    const response = await fetch("/api/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ items }),
+    const model = "gemini-3-flash-preview";
+    const prompt = `
+      Analyze this inventory data and provide 3 actionable insights.
+      Data: ${JSON.stringify(items.map((i: any) => ({ 
+        name: i.name, 
+        stocks: i.stocks, 
+        price: i.price, 
+        min: i.minQuantity,
+        promo: i.promoPrice,
+        offers: i.offers
+      })))}
+      
+      Return the response as a JSON array of objects with this structure:
+      [{ "title": "string", "content": "string", "type": "warning" | "info" | "success" }]
+    `;
+
+    const result = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+      config: {
+        responseMimeType: "application/json"
+      }
     });
 
-    if (response.ok) {
-      return await response.json();
+    const text = result.text;
+    if (text) {
+      return JSON.parse(text);
     }
   } catch (e) {
-    console.warn("Backend AI unreachable, falling back to local analysis", e);
+    console.warn("Gemini AI error, falling back to local analysis", e);
   }
 
   // Local Fallback Logic (Offline)
@@ -26,7 +47,7 @@ export const analyzeInventory = async (items: InventoryItem[]): Promise<AIInsigh
   
   // 1. Check for Low Stock
   const lowStockItems = items.filter(i => {
-    const total = Object.values(i.stocks).reduce((a, b) => a + b, 0);
+    const total = Object.values(i.stocks || {}).reduce((a, b) => a + (Number(b) || 0), 0);
     return total <= i.minQuantity;
   });
 
@@ -41,7 +62,7 @@ export const analyzeInventory = async (items: InventoryItem[]): Promise<AIInsigh
   // 2. Identify Highest Value Category
   const catValues: Record<string, number> = {};
   items.forEach(i => {
-    const total = Object.values(i.stocks).reduce((a, b) => a + b, 0);
+    const total = Object.values(i.stocks || {}).reduce((a, b) => a + (Number(b) || 0), 0);
     catValues[i.category] = (catValues[i.category] || 0) + (total * i.price);
   });
 
@@ -55,14 +76,14 @@ export const analyzeInventory = async (items: InventoryItem[]): Promise<AIInsigh
   }
 
   // 3. Distribution Insight
-  const avgShopsPerItem = items.reduce((acc, i) => acc + Object.keys(i.stocks).length, 0) / items.length;
-  if (avgShopsPerItem < 2) {
+  const avgShopsPerItem = items.length > 0 ? items.reduce((acc, i) => acc + Object.keys(i.stocks || {}).length, 0) / items.length : 0;
+  if (avgShopsPerItem < 2 && items.length > 0) {
     insights.push({
       title: "Logistic Opportunity",
       content: "Most items are concentrated in single locations. Consider inter-shop transfers to optimize regional availability.",
       type: 'info'
     });
-  } else {
+  } else if (items.length > 0) {
     insights.push({
       title: "Network Health",
       content: "Stock is well-distributed across your retail network. Maintain current replenishment cycle.",
@@ -106,11 +127,18 @@ export const parseBulkInventory = async (rawText: string): Promise<Partial<Inven
 };
 
 export const generateDescription = async (itemName: string): Promise<string> => {
-  const templates = [
-    `Premium quality ${itemName} designed for durability and high performance in everyday use.`,
-    `The latest ${itemName} featuring modern aesthetics and reliable functionality for professional environments.`,
-    `Top-tier ${itemName} offering exceptional value and craftsmanship for demanding users.`
-  ];
-  const idx = itemName.length % templates.length;
-  return templates[idx];
+  try {
+    const model = "gemini-3-flash-preview";
+    const prompt = `Generate a professional, concise product description (max 2 sentences) for an inventory item named: ${itemName}`;
+
+    const result = await ai.models.generateContent({
+      model,
+      contents: [{ parts: [{ text: prompt }] }],
+    });
+
+    return result.text || `Premium quality ${itemName} designed for durability and high performance.`;
+  } catch (e) {
+    console.warn("Gemini description error:", e);
+    return `Premium quality ${itemName} designed for durability and high performance.`;
+  }
 };
