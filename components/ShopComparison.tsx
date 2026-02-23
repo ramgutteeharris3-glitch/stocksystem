@@ -18,8 +18,10 @@ interface AuditResult {
 }
 
 const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) => {
-  const [mode, setMode] = useState<'gap' | 'audit'>('gap');
+  const [mode, setMode] = useState<'gap' | 'audit' | 'side-by-side'>('gap');
   const [targetShop, setTargetShop] = useState<ShopName>(currentShop === 'Global' ? 'Master' : currentShop);
+  const [shopA, setShopA] = useState<ShopName>(currentShop === 'Global' ? 'Master' : currentShop);
+  const [shopB, setShopB] = useState<ShopName>(SHOPS[2] as ShopName); // Default to another shop
   const [auditResults, setAuditResults] = useState<AuditResult[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -145,6 +147,12 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
             Gap Analysis
           </button>
           <button 
+            onClick={() => setMode('side-by-side')}
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'side-by-side' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
+          >
+            Side-by-Side
+          </button>
+          <button 
             onClick={() => setMode('audit')}
             className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'audit' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
           >
@@ -157,19 +165,21 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
         <>
           <div className="flex items-center gap-3 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50 w-fit">
             <span className="text-[9px] font-black text-slate-500 uppercase px-3">Target Shop:</span>
-            {SHOPS.filter(s => s !== 'Global').map(shop => (
-              <button
-                key={shop}
-                onClick={() => setTargetShop(shop)}
-                className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
-                  targetShop === shop 
-                    ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
-                    : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
-                }`}
-              >
-                {shop}
-              </button>
-            ))}
+            <div className="flex flex-wrap gap-1 max-w-4xl">
+              {SHOPS.filter(s => s !== 'Global').map(shop => (
+                <button
+                  key={shop}
+                  onClick={() => setTargetShop(shop)}
+                  className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all ${
+                    targetShop === shop 
+                      ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' 
+                      : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  }`}
+                >
+                  {shop}
+                </button>
+              ))}
+            </div>
           </div>
 
           {missingItems.length === 0 ? (
@@ -227,6 +237,91 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
             </div>
           )}
         </>
+      ) : mode === 'side-by-side' ? (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Shop A (Reference)</label>
+              <div className="flex flex-wrap gap-2">
+                {SHOPS.filter(s => s !== 'Global').map(shop => (
+                  <button
+                    key={shop}
+                    onClick={() => setShopA(shop)}
+                    className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${
+                      shopA === shop 
+                        ? 'bg-indigo-600 text-white border-indigo-600' 
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700'
+                    }`}
+                  >
+                    {shop}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Shop B (Comparison)</label>
+              <div className="flex flex-wrap gap-2">
+                {SHOPS.filter(s => s !== 'Global').map(shop => (
+                  <button
+                    key={shop}
+                    onClick={() => setShopB(shop)}
+                    className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase border transition-all ${
+                      shopB === shop 
+                        ? 'bg-emerald-600 text-white border-emerald-600' 
+                        : 'bg-slate-50 dark:bg-slate-800 text-slate-400 border-slate-100 dark:border-slate-700'
+                    }`}
+                  >
+                    {shop}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest">Product Details</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{shopA} Stock</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">{shopB} Stock</th>
+                  <th className="px-8 py-6 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Variance</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {items.map(item => {
+                  const qtyA = Number(item.stocks?.[shopA]) || 0;
+                  const qtyB = Number(item.stocks?.[shopB]) || 0;
+                  const diff = qtyB - qtyA;
+                  
+                  if (qtyA === 0 && qtyB === 0) return null;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-8 py-6">
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{item.name}</span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{item.sku}</span>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 text-center font-black text-slate-700 dark:text-slate-300">{qtyA}</td>
+                      <td className="px-8 py-6 text-center font-black text-slate-700 dark:text-slate-300">{qtyB}</td>
+                      <td className="px-8 py-6 text-right">
+                        <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${
+                          diff > 0 ? 'bg-emerald-100 text-emerald-700' : 
+                          diff < 0 ? 'bg-rose-100 text-rose-700' : 
+                          'bg-slate-100 text-slate-500'
+                        }`}>
+                          {diff > 0 ? '+' : ''}{diff}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       ) : (
         <div className="space-y-6">
           <div className="bg-indigo-600 rounded-[2.5rem] p-10 text-white">
