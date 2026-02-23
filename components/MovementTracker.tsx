@@ -104,6 +104,7 @@ const MovementTracker: React.FC<MovementTrackerProps> = ({ movements, initialSho
                </div>
             </div>
           </div>
+        </div>
       </div>
 
       {/* Movement List */}
