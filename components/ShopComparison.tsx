@@ -7,6 +7,15 @@ interface ShopComparisonProps {
   currentShop: ShopName;
 }
 
+interface RequisitionItem {
+  id: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  sourceShop: ShopName;
+  availableStock: number;
+}
+
 interface AuditResult {
   sku: string;
   name: string;
@@ -18,13 +27,79 @@ interface AuditResult {
 }
 
 const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) => {
-  const [mode, setMode] = useState<'gap' | 'audit' | 'side-by-side'>('gap');
+  const [mode, setMode] = useState<'gap' | 'audit' | 'side-by-side' | 'finder'>('gap');
   const [targetShop, setTargetShop] = useState<ShopName>(currentShop === 'Global' ? 'Master' : currentShop);
   const [shopA, setShopA] = useState<ShopName>(currentShop === 'Global' ? 'Master' : currentShop);
   const [shopB, setShopB] = useState<ShopName>(SHOPS[2] as ShopName); // Default to another shop
   const [auditResults, setAuditResults] = useState<AuditResult[]>([]);
+  const [requisitionList, setRequisitionList] = useState<RequisitionItem[]>([]);
+  const [requesterName, setRequesterName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [pendingItem, setPendingItem] = useState<{ item: InventoryItem, shop: ShopName } | null>(null);
+  const [pendingQty, setPendingQty] = useState('1');
+  const [toast, setToast] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const filteredItems = useMemo(() => {
+    if (!searchQuery) return [];
+    return items.filter(item => 
+      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      item.sku.toLowerCase().includes(searchQuery.toLowerCase())
+    ).slice(0, 20);
+  }, [items, searchQuery]);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const confirmRequisition = () => {
+    if (!pendingItem) return;
+    const qty = parseInt(pendingQty) || 1;
+    const { item, shop } = pendingItem;
+
+    const existing = requisitionList.find(r => r.id === item.id && r.sourceShop === shop);
+    if (existing) {
+      setRequisitionList(prev => prev.map(r => (r.id === item.id && r.sourceShop === shop) ? { ...r, quantity: r.quantity + qty } : r));
+    } else {
+      setRequisitionList(prev => [...prev, {
+        id: item.id,
+        name: item.name,
+        sku: item.sku,
+        quantity: qty,
+        sourceShop: shop,
+        availableStock: Number(item.stocks?.[shop]) || 0
+      }]);
+    }
+    showToast(`Added ${qty}x ${item.name} to request list`);
+    setPendingItem(null);
+    setPendingQty('1');
+
+    // Auto-scroll to list if it's the first item
+    if (requisitionList.length === 0) {
+      setTimeout(() => {
+        document.getElementById('requisition-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  };
+
+  const addToRequisition = (item: InventoryItem, sourceShop: ShopName) => {
+    setPendingItem({ item, shop: sourceShop });
+    setPendingQty('1');
+  };
+
+  const updateReqQuantity = (id: string, sourceShop: ShopName, qty: number) => {
+    setRequisitionList(prev => prev.map(r => (r.id === id && r.sourceShop === sourceShop) ? { ...r, quantity: Math.max(1, qty) } : r));
+  };
+
+  const removeReqItem = (id: string, sourceShop: ShopName) => {
+    setRequisitionList(prev => prev.filter(r => !(r.id === id && r.sourceShop === sourceShop)));
+  };
+
+  const handleExport = () => {
+    window.print();
+  };
 
   const missingItems = useMemo(() => {
     const actualShops = SHOPS.filter(s => s !== 'Global');
@@ -132,32 +207,55 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 relative">
+      {toast && (
+        <div className="fixed top-24 right-8 z-[110] bg-slate-900 text-white px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 animate-in slide-in-from-right-8 duration-300 no-print">
+          <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+            <i className="fa-solid fa-check text-xs"></i>
+          </div>
+          <p className="text-xs font-black uppercase tracking-widest">{toast}</p>
+        </div>
+      )}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
           <h2 className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Comparison & Audit</h2>
           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-black uppercase tracking-[0.2em] mt-1">Cross-shop stock gaps and pricing synchronization</p>
         </div>
 
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+        <div className="flex items-center gap-3 no-print">
           <button 
-            onClick={() => setMode('gap')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'gap' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
+            onClick={handleExport}
+            className="px-8 py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black dark:hover:bg-indigo-700 transition-all shadow-lg flex items-center gap-2"
           >
-            Gap Analysis
+            <i className="fa-solid fa-download"></i>
+            Export View
           </button>
-          <button 
-            onClick={() => setMode('side-by-side')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'side-by-side' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
-          >
-            Side-by-Side
-          </button>
-          <button 
-            onClick={() => setMode('audit')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'audit' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
-          >
-            Price & Stock Audit
-          </button>
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
+            <button 
+              onClick={() => setMode('gap')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'gap' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
+            >
+              Gap Analysis
+            </button>
+            <button 
+              onClick={() => setMode('side-by-side')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'side-by-side' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
+            >
+              Side-by-Side
+            </button>
+            <button 
+              onClick={() => setMode('finder')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'finder' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
+            >
+              Stock Finder
+            </button>
+            <button 
+              onClick={() => setMode('audit')}
+              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all ${mode === 'audit' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-400'}`}
+            >
+              Price & Stock Audit
+            </button>
+          </div>
         </div>
       </div>
 
@@ -218,10 +316,15 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
                       <td className="px-8 py-6">
                         <div className="flex flex-wrap gap-2">
                           {item.sources.map(src => (
-                            <div key={src.shop} className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 px-2 py-1 rounded-lg">
+                            <button 
+                              key={src.shop} 
+                              onClick={() => addToRequisition(item, src.shop as ShopName)}
+                              className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800/50 px-2 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all group/src"
+                            >
                               <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase">{src.shop}</span>
                               <span className="w-4 h-4 bg-indigo-600 text-white text-[8px] flex items-center justify-center rounded-md font-bold">{src.qty}</span>
-                            </div>
+                              <i className="fa-solid fa-plus text-[8px] text-indigo-400 opacity-0 group-hover/src:opacity-100 transition-opacity"></i>
+                            </button>
                           ))}
                         </div>
                       </td>
@@ -304,8 +407,24 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
                           <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{item.sku}</span>
                         </div>
                       </td>
-                      <td className="px-8 py-6 text-center font-black text-slate-700 dark:text-slate-300">{qtyA}</td>
-                      <td className="px-8 py-6 text-center font-black text-slate-700 dark:text-slate-300">{qtyB}</td>
+                      <td className="px-8 py-6 text-center font-black text-slate-700 dark:text-slate-300">
+                        <button 
+                          onClick={() => addToRequisition(item, shopA)}
+                          className="hover:text-indigo-600 transition-colors flex items-center justify-center gap-2 mx-auto"
+                        >
+                          {qtyA}
+                          {qtyA > 0 && <i className="fa-solid fa-plus text-[8px] no-print"></i>}
+                        </button>
+                      </td>
+                      <td className="px-8 py-6 text-center font-black text-slate-700 dark:text-slate-300">
+                        <button 
+                          onClick={() => addToRequisition(item, shopB)}
+                          className="hover:text-emerald-600 transition-colors flex items-center justify-center gap-2 mx-auto"
+                        >
+                          {qtyB}
+                          {qtyB > 0 && <i className="fa-solid fa-plus text-[8px] no-print"></i>}
+                        </button>
+                      </td>
                       <td className="px-8 py-6 text-right">
                         <span className={`text-[10px] font-black px-2 py-1 rounded-lg ${
                           diff > 0 ? 'bg-emerald-100 text-emerald-700' : 
@@ -321,6 +440,66 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
               </tbody>
             </table>
           </div>
+        </div>
+      ) : mode === 'finder' ? (
+        <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm">
+            <label className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-4 block">Global Stock Finder</label>
+            <div className="relative">
+              <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-300"></i>
+              <input 
+                type="text"
+                placeholder="Search product name or SKU across all outlets..."
+                className="w-full pl-12 pr-4 py-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-2xl font-bold text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 dark:text-white"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {searchQuery && (
+            <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                      <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest min-w-[200px]">Product</th>
+                      {SHOPS.filter(s => s !== 'Global').map(shop => (
+                        <th key={shop} className="px-4 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">{shop}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                    {filteredItems.map(item => (
+                      <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                        <td className="px-8 py-6">
+                          <p className="font-black text-slate-800 dark:text-white text-xs uppercase">{item.name}</p>
+                          <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">{item.sku}</p>
+                        </td>
+                        {SHOPS.filter(s => s !== 'Global').map(shop => {
+                          const stock = Number(item.stocks?.[shop]) || 0;
+                          return (
+                            <td key={shop} className="px-4 py-6 text-center">
+                              <button 
+                                onClick={() => addToRequisition(item, shop as ShopName)}
+                                className={`w-10 h-10 rounded-xl text-[10px] font-black flex items-center justify-center transition-all ${
+                                  stock > 10 ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20' :
+                                  stock > 0 ? 'bg-amber-50 text-amber-600 dark:bg-amber-900/20' :
+                                  'bg-slate-50 text-slate-300 dark:bg-slate-800'
+                                } hover:scale-110 active:scale-95`}
+                              >
+                                {stock}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
@@ -423,6 +602,198 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
               <p className="text-slate-400 dark:text-slate-500 text-[11px] mt-1 uppercase font-bold tracking-wider">Upload a CSV file to begin the cross-shop verification process.</p>
             </div>
           )}
+        </div>
+      )}
+
+      {pendingItem && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 no-print">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl border border-slate-100 dark:border-slate-800 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-8 border-b border-slate-50 dark:border-slate-800">
+              <div className="flex items-center justify-between mb-6">
+                <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center">
+                  <i className="fa-solid fa-cart-plus text-indigo-600 dark:text-indigo-400"></i>
+                </div>
+                <button onClick={() => setPendingItem(null)} className="text-slate-300 hover:text-slate-500 transition-colors">
+                  <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+              </div>
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Add to Requisition</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Requesting from {pendingItem.shop}</p>
+              
+              <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
+                <p className="text-xs font-black text-slate-800 dark:text-white uppercase">{pendingItem.item.name}</p>
+                <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{pendingItem.item.sku}</p>
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Available Stock</span>
+                  <span className="text-sm font-black text-indigo-600">{pendingItem.item.stocks?.[pendingItem.shop] || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-8 space-y-6">
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Quantity Needed</label>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setPendingQty(prev => Math.max(1, parseInt(prev) - 1).toString())}
+                    className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                  >
+                    <i className="fa-solid fa-minus"></i>
+                  </button>
+                  <input 
+                    type="number"
+                    className="flex-grow h-14 bg-slate-50 dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-center font-black text-xl focus:border-indigo-500 outline-none transition-all text-slate-900 dark:text-white"
+                    value={pendingQty}
+                    onChange={(e) => setPendingQty(e.target.value)}
+                    autoFocus
+                  />
+                  <button 
+                    onClick={() => setPendingQty(prev => (parseInt(prev) + 1).toString())}
+                    className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-indigo-600 hover:text-white transition-all shadow-sm"
+                  >
+                    <i className="fa-solid fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+
+              <button 
+                onClick={confirmRequisition}
+                className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 dark:shadow-none"
+              >
+                Add to Request List
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {requisitionList.length > 0 && (
+        <div id="requisition-section" className="mt-12 space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-500">
+          <div className="flex items-center justify-between no-print">
+            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Active Requisition List</h3>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={handleExport}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2"
+              >
+                <i className="fa-solid fa-file-pdf"></i>
+                Download Form
+              </button>
+              <button 
+                onClick={() => setRequisitionList([])}
+                className="text-[10px] font-black text-rose-500 uppercase tracking-widest hover:text-rose-600"
+              >
+                Clear All
+              </button>
+            </div>
+          </div>
+
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden p-8">
+            {/* Requisition Header - Visible in Print */}
+            <div className="mb-8 pb-8 border-b border-slate-100 dark:border-slate-800 flex flex-col md:flex-row justify-between gap-6">
+              <div className="space-y-4">
+                <div>
+                  <h4 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Stock Requisition Form</h4>
+                  <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Internal Transfer Request</p>
+                </div>
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Requesting Shop</p>
+                    <p className="text-sm font-black text-indigo-600 uppercase">{currentShop}</p>
+                  </div>
+                  <div>
+                    <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Date of Request</p>
+                    <p className="text-sm font-black text-slate-800 dark:text-white">{new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="w-full md:w-64 no-print">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Requester Name</label>
+                <input 
+                  type="text"
+                  placeholder="Enter your name..."
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700 rounded-xl font-bold text-xs focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-slate-900 dark:text-white"
+                  value={requesterName}
+                  onChange={(e) => setRequesterName(e.target.value)}
+                />
+              </div>
+              
+              <div className="print-only">
+                <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Requested By</p>
+                <p className="text-sm font-black text-slate-800">{requesterName || '____________________'}</p>
+              </div>
+            </div>
+
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+                  <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Product</th>
+                  <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Source Shop</th>
+                  <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Requested Qty</th>
+                  <th className="px-8 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right no-print">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                {requisitionList.map(item => (
+                  <tr key={`${item.id}-${item.sourceShop}`} className="group">
+                    <td className="px-8 py-6">
+                      <p className="font-black text-slate-800 dark:text-white text-xs uppercase">{item.name}</p>
+                      <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">SKU: {item.sku}</p>
+                    </td>
+                    <td className="px-8 py-6 text-center">
+                      <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1 rounded-lg">
+                        {item.sourceShop}
+                      </span>
+                    </td>
+                    <td className="px-8 py-6 text-center">
+                      <div className="flex items-center justify-center gap-3 no-print">
+                        <button 
+                          onClick={() => updateReqQuantity(item.id, item.sourceShop, item.quantity - 1)}
+                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-all"
+                        >
+                          <i className="fa-solid fa-minus text-[10px]"></i>
+                        </button>
+                        <input 
+                          type="number"
+                          className="w-12 text-center bg-transparent font-black text-sm outline-none text-slate-900 dark:text-white"
+                          value={item.quantity}
+                          onChange={(e) => updateReqQuantity(item.id, item.sourceShop, parseInt(e.target.value) || 1)}
+                        />
+                        <button 
+                          onClick={() => updateReqQuantity(item.id, item.sourceShop, item.quantity + 1)}
+                          className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-indigo-600 transition-all"
+                        >
+                          <i className="fa-solid fa-plus text-[10px]"></i>
+                        </button>
+                      </div>
+                      <span className="print-only font-black text-sm">{item.quantity}</span>
+                    </td>
+                    <td className="px-8 py-6 text-right no-print">
+                      <button 
+                        onClick={() => removeReqItem(item.id, item.sourceShop)}
+                        className="text-slate-300 hover:text-rose-500 transition-colors"
+                      >
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="p-8 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 print-only mt-8">
+              <div className="grid grid-cols-2 gap-12">
+                <div className="text-center">
+                  <div className="h-px bg-slate-900 mb-2"></div>
+                  <p className="text-[10px] font-black uppercase">Requested By</p>
+                </div>
+                <div className="text-center">
+                  <div className="h-px bg-slate-900 mb-2"></div>
+                  <p className="text-[10px] font-black uppercase">Approved By</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
