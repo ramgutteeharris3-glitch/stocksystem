@@ -14,6 +14,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ transactions, m
     return transactions.filter(t => {
       const isShopMatch = currentShop === 'Global' || t.shop === currentShop;
       if (!isShopMatch) return false;
+      if (t.status === 'CANCELLED') return false;
 
       if (t.type === 'RECEIPT' && !t.invoiceNumber) {
         return true;

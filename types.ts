@@ -62,6 +62,7 @@ export interface Transaction {
   paymentMethod: string;
   paymentReference?: string;
   footerNote?: string;
+  status?: 'ACTIVE' | 'CANCELLED';
   visitor?: {
     surname: string;
     otherNames: string;

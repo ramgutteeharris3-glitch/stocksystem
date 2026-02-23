@@ -5,9 +5,10 @@ import { Transaction, ShopName } from '../types';
 interface SalesLedgerProps {
   transactions: Transaction[];
   currentShop: ShopName;
+  onCancelTransaction: (txn: Transaction) => void;
 }
 
-const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) => {
+const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop, onCancelTransaction }) => {
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const filteredLines = useMemo(() => {
@@ -30,6 +31,7 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) 
         const lineVatAmount = discountedLineTotal - lineExclVat;
 
         return {
+          id: t.id,
           date: t.date,
           receiptNumber: t.receiptNumber,
           invoiceNumber: t.invoiceNumber || 'N/A',
@@ -42,7 +44,9 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) 
           vatAmount: lineVatAmount,
           exclVat: lineExclVat,
           shop: t.shop,
-          salesperson: t.salesperson
+          salesperson: t.salesperson,
+          status: t.status || 'ACTIVE',
+          originalTxn: t
         };
       })
     );
@@ -50,9 +54,11 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) 
 
   const totals = useMemo(() => {
     return filteredLines.reduce((acc, curr) => {
-      acc.grossTotal += curr.lineTotal;
-      acc.totalVat += curr.vatAmount;
-      acc.totalExcl += curr.exclVat;
+      if (curr.status !== 'CANCELLED') {
+        acc.grossTotal += curr.lineTotal;
+        acc.totalVat += curr.vatAmount;
+        acc.totalExcl += curr.exclVat;
+      }
       return acc;
     }, { grossTotal: 0, totalVat: 0, totalExcl: 0 });
   }, [filteredLines]);
@@ -123,14 +129,20 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) 
                 <th className="px-8 py-6 text-right">VAT (15%)</th>
                 <th className="px-8 py-6 text-right">Total (Incl.)</th>
                 <th className="px-8 py-6">Method</th>
+                <th className="px-8 py-6 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filteredLines.length > 0 ? filteredLines.map((item, idx) => (
-                <tr key={`${item.receiptNumber}-${idx}`} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                <tr key={`${item.receiptNumber}-${idx}`} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${item.status === 'CANCELLED' ? 'opacity-50 grayscale' : ''}`}>
                   <td className="px-8 py-6">
                     <div className="flex flex-col">
-                      <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs">#{item.receiptNumber}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-indigo-600 dark:text-indigo-400 text-xs">#{item.receiptNumber}</span>
+                        {item.status === 'CANCELLED' && (
+                          <span className="text-[8px] font-black bg-rose-600 text-white px-1.5 py-0.5 rounded uppercase">Cancelled</span>
+                        )}
+                      </div>
                       <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500">INV: {item.invoiceNumber}</span>
                     </div>
                   </td>
@@ -157,6 +169,17 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop }) 
                     <span className="text-[8px] font-black uppercase text-indigo-500 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md border border-indigo-100 dark:border-indigo-800">
                       {item.paymentMethod}
                     </span>
+                  </td>
+                  <td className="px-8 py-6 text-right no-print">
+                    {item.status === 'ACTIVE' && (
+                      <button 
+                        onClick={() => onCancelTransaction(item.originalTxn)}
+                        className="p-2 text-slate-300 hover:text-rose-600 transition-colors"
+                        title="Cancel Transaction"
+                      >
+                        <i className="fa-solid fa-ban"></i>
+                      </button>
+                    )}
                   </td>
                 </tr>
               )) : (

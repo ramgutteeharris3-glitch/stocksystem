@@ -16,6 +16,7 @@ import MovementTracker from './components/MovementTracker';
 import SalesLedger from './components/SalesLedger';
 import CustomerList from './components/CustomerList';
 import NotificationCenter from './components/NotificationCenter';
+import ShopComparison from './components/ShopComparison';
 import { analyzeInventory } from './services/geminiService';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
@@ -43,7 +44,7 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications' | 'comparison'>('inventory');
   const [currentShop, setCurrentShop] = useState<ShopName>('Global');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -243,7 +244,15 @@ const App: React.FC = () => {
         if (txnItem) {
           const stocks = { ...(item.stocks || {}) };
           const change = (txnItem.quantity || 0) * multiplier;
+          
+          // Decrease from source shop
           stocks[txn.shop] = (Number(stocks[txn.shop]) || 0) - change;
+          
+          // If it's a transfer, increase in destination shop
+          if (txn.type === 'WAREHOUSE_TRANSFER' && txn.toShop) {
+            stocks[txn.toShop] = (Number(stocks[txn.toShop]) || 0) + change;
+          }
+          
           return { ...item, stocks, lastUpdated: timestamp };
         }
         return item;
@@ -251,21 +260,74 @@ const App: React.FC = () => {
     });
 
     if (!isRevert) {
-      const newMovements = txn.items.map(ti => createMovement(
-        ti.itemId, 
-        ti.name, 
-        ti.sku, 
-        txn.shop, 
-        (txn.type === 'RECEIPT' || txn.type === 'DELIVERY_NOTE' || txn.type === 'WAREHOUSE_TRANSFER' || txn.type === 'VAT_REFUND') ? 'OUT' : 'IN', 
-        ti.quantity, 
-        txn.receiptNumber, 
-        `${txn.type} - ${txn.toShop ? 'To: ' + txn.toShop : 'Sale'}`
-      ));
-      setMovements(prev => [...newMovements, ...prev]);
+      const movementsToAdd: StockMovement[] = [];
+      
+      txn.items.forEach(ti => {
+        // Source movement
+        movementsToAdd.push(createMovement(
+          ti.itemId, 
+          ti.name, 
+          ti.sku, 
+          txn.shop, 
+          'OUT', 
+          ti.quantity, 
+          txn.receiptNumber, 
+          `${txn.type} - ${txn.toShop ? 'To: ' + txn.toShop : 'Sale'}`
+        ));
+        
+        // Destination movement for transfers
+        if (txn.type === 'WAREHOUSE_TRANSFER' && txn.toShop) {
+          movementsToAdd.push(createMovement(
+            ti.itemId, 
+            ti.name, 
+            ti.sku, 
+            txn.toShop, 
+            'IN', 
+            ti.quantity, 
+            txn.receiptNumber, 
+            `Transfer from ${txn.shop}`
+          ));
+        }
+      });
+      
+      setMovements(prev => [...movementsToAdd, ...prev]);
     } else {
       // FIX: Remove old movements associated with this receipt number when reverting
       setMovements(prev => prev.filter(m => m.referenceId !== txn.receiptNumber));
     }
+  };
+
+  const handleCancelTransaction = (txn: Transaction) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Cancellation',
+      message: `Are you sure you want to cancel ${txn.type} ${txn.receiptNumber}? This will revert all stock changes.`,
+      onConfirm: () => {
+        // Revert stock impact
+        processStockChange(txn, true);
+        
+        // Update transaction status
+        setTransactions(prev => prev.map(t => t.id === txn.id ? { ...t, status: 'CANCELLED' } : t));
+        
+        // Update customer total if applicable
+        if (txn.customerName && txn.customerName !== 'Guest') {
+          setCustomers(prev => {
+            const idx = prev.findIndex(c => c.name === txn.customerName);
+            if (idx > -1) {
+              const updated = [...prev];
+              updated[idx] = {
+                ...updated[idx],
+                totalSpent: updated[idx].totalSpent - (txn.total || 0)
+              };
+              return updated;
+            }
+            return prev;
+          });
+        }
+        
+        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+      }
+    });
   };
 
   const updateCustomerDatabase = (txn: Transaction, oldTxn?: Transaction) => {
@@ -773,6 +835,8 @@ const App: React.FC = () => {
           <CustomerList customers={customers} />
         ) : activeTab === 'notifications' ? (
           <NotificationCenter transactions={transactions} movements={movements} currentShop={currentShop} onEditTransaction={handleEditTransaction} />
+        ) : activeTab === 'comparison' ? (
+          <ShopComparison items={items} currentShop={currentShop} />
         ) : (
           <MovementTracker 
             movements={movements} 
