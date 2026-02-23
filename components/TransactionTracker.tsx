@@ -6,9 +6,10 @@ interface TransactionTrackerProps {
   transactions: Transaction[];
   currentShop: ShopName;
   onEdit: (txn: Transaction) => void;
+  onCancel: (txn: Transaction) => void;
 }
 
-const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, currentShop, onEdit }) => {
+const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, currentShop, onEdit, onCancel }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filtered = useMemo(() => {
@@ -27,9 +28,10 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
 
   const stats = useMemo(() => {
     const relevant = transactions.filter(t => currentShop === 'Global' || t.shop === currentShop || t.toShop === currentShop);
-    const revenue = relevant.reduce((acc, t) => acc + (t.type === 'RECEIPT' ? t.total : 0), 0);
-    const transferCount = relevant.filter(t => t.type !== 'RECEIPT').length;
-    return { revenue, count: relevant.length, transferCount };
+    const active = relevant.filter(t => t.status !== 'CANCELLED');
+    const revenue = active.reduce((acc, t) => acc + (t.type === 'RECEIPT' ? t.total : 0), 0);
+    const transferCount = active.filter(t => t.type !== 'RECEIPT').length;
+    return { revenue, count: active.length, transferCount };
   }, [transactions, currentShop]);
 
   const handleExportPDF = () => {
@@ -92,26 +94,31 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {filtered.length > 0 ? filtered.map((txn) => (
-                <tr key={txn.id} className="hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group">
+                <tr key={txn.id} className={`hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group ${txn.status === 'CANCELLED' ? 'opacity-50 grayscale' : ''}`}>
                   <td className="px-10 py-8">
                     <div className="flex items-center gap-3">
                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center no-print ${txn.type === 'RECEIPT' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}`}>
                           <i className={`fa-solid ${txn.type === 'RECEIPT' ? 'fa-cash-register' : 'fa-right-left'}`}></i>
                        </div>
                        <div>
-                          {txn.type === 'RECEIPT' ? (
-                            <>
-                              <p className="font-black text-slate-900 dark:text-white text-xs">REC: {txn.receiptNumber.toUpperCase()}</p>
-                              {txn.invoiceNumber && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">INV: {txn.invoiceNumber}</p>}
-                            </>
-                          ) : (
-                            <>
-                              <div className="flex flex-col gap-0.5">
-                                {txn.deliveryNoteNumber && <p className="font-black text-slate-900 dark:text-white text-xs">DN: {txn.deliveryNoteNumber.toUpperCase()}</p>}
-                                {txn.transferNoteNumber && <p className="font-black text-indigo-600 dark:text-indigo-400 text-xs">WT: {txn.transferNoteNumber.toUpperCase()}</p>}
-                              </div>
-                            </>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {txn.type === 'RECEIPT' ? (
+                              <>
+                                <p className="font-black text-slate-900 dark:text-white text-xs">REC: {txn.receiptNumber.toUpperCase()}</p>
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex flex-col gap-0.5">
+                                  {txn.deliveryNoteNumber && <p className="font-black text-slate-900 dark:text-white text-xs">DN: {txn.deliveryNoteNumber.toUpperCase()}</p>}
+                                  {txn.transferNoteNumber && <p className="font-black text-indigo-600 dark:text-indigo-400 text-xs">WT: {txn.transferNoteNumber.toUpperCase()}</p>}
+                                </div>
+                              </>
+                            )}
+                            {txn.status === 'CANCELLED' && (
+                              <span className="text-[8px] font-black bg-rose-600 text-white px-1.5 py-0.5 rounded uppercase">Cancelled</span>
+                            )}
+                          </div>
+                          {txn.type === 'RECEIPT' && txn.invoiceNumber && <p className="text-[9px] font-bold text-slate-400 dark:text-slate-500">INV: {txn.invoiceNumber}</p>}
                           <p className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-1">{txn.type.replace('_', ' ')}</p>
                        </div>
                     </div>
@@ -144,9 +151,16 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
                     </p>
                   </td>
                   <td className="px-10 py-8 text-right no-print">
-                    <button onClick={() => onEdit(txn)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
-                      <i className="fa-solid fa-file-pen text-lg"></i>
-                    </button>
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => onEdit(txn)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all">
+                        <i className="fa-solid fa-file-pen text-lg"></i>
+                      </button>
+                      {txn.status !== 'CANCELLED' && (
+                        <button onClick={() => onCancel(txn)} className="w-12 h-12 bg-white dark:bg-slate-800 border-2 border-slate-100 dark:border-slate-700 rounded-2xl text-slate-300 hover:text-rose-600 transition-all">
+                          <i className="fa-solid fa-ban text-lg"></i>
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )) : (

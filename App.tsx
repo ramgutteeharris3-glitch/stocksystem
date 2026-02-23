@@ -77,6 +77,7 @@ const App: React.FC = () => {
 
   const pendingNotificationCount = useMemo(() => {
     return transactions.filter(t => {
+      if (t.status === 'CANCELLED') return false;
       if (t.type === 'RECEIPT' && !t.invoiceNumber) return true;
       if (t.type === 'DELIVERY_NOTE' && !t.transferNoteNumber) return true;
       return false;
@@ -298,7 +299,7 @@ const App: React.FC = () => {
   };
 
   const handleCancelTransaction = (txn: Transaction) => {
-    setConfirmDialog({
+    setConfirmConfig({
       isOpen: true,
       title: 'Confirm Cancellation',
       message: `Are you sure you want to cancel ${txn.type} ${txn.receiptNumber}? This will revert all stock changes.`,
@@ -325,7 +326,7 @@ const App: React.FC = () => {
           });
         }
         
-        setConfirmDialog(prev => ({ ...prev, isOpen: false }));
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
       }
     });
   };
@@ -828,9 +829,9 @@ const App: React.FC = () => {
             </div>
           </>
         ) : activeTab === 'tracker' ? (
-          <TransactionTracker transactions={transactions} currentShop={currentShop} onEdit={handleEditTransaction} />
+          <TransactionTracker transactions={transactions} currentShop={currentShop} onEdit={handleEditTransaction} onCancel={handleCancelTransaction} />
         ) : activeTab === 'ledger' ? (
-          <SalesLedger transactions={transactions} currentShop={currentShop} />
+          <SalesLedger transactions={transactions} currentShop={currentShop} onCancelTransaction={handleCancelTransaction} />
         ) : activeTab === 'customers' ? (
           <CustomerList customers={customers} />
         ) : activeTab === 'notifications' ? (
