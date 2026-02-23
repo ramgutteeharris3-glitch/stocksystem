@@ -97,8 +97,83 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
     setRequisitionList(prev => prev.filter(r => !(r.id === id && r.sourceShop === sourceShop)));
   };
 
+  const downloadCSV = () => {
+    const date = new Date().toLocaleDateString('en-GB');
+    let csvContent = "\uFEFF"; // UTF-8 BOM for Excel
+    let fileName = `comparison_${mode}_${new Date().getTime()}.csv`;
+    
+    if (mode === 'side-by-side') {
+      csvContent += `Comparison Report: ${shopA} vs ${shopB}\n`;
+      csvContent += `Date: ${date}\n\n`;
+      csvContent += `Product,SKU,${shopA} Stock,${shopB} Stock\n`;
+      
+      items.forEach(item => {
+        const qtyA = Number(item.stocks?.[shopA]) || 0;
+        const qtyB = Number(item.stocks?.[shopB]) || 0;
+        if (qtyA > 0 || qtyB > 0) {
+          csvContent += `"${item.name.replace(/"/g, '""')}","${item.sku}",${qtyA},${qtyB}\n`;
+        }
+      });
+    } else if (mode === 'gap') {
+      csvContent += `Gap Analysis Report for ${targetShop}\n`;
+      csvContent += `Date: ${date}\n\n`;
+      csvContent += `Product,SKU,Category,Available Sources\n`;
+      
+      missingItems.forEach(item => {
+        const sources = item.sources.map(s => `${s.shop}(${s.qty})`).join('; ');
+        csvContent += `"${item.name.replace(/"/g, '""')}","${item.sku}","${item.category}","${sources}"\n`;
+      });
+    } else if (mode === 'finder') {
+      csvContent += `Stock Finder Report for "${searchQuery}"\n`;
+      csvContent += `Date: ${date}\n\n`;
+      const shops = SHOPS.filter(s => s !== 'Global');
+      csvContent += `Product,SKU,${shops.join(',')}\n`;
+      
+      filteredItems.forEach(item => {
+        const stocks = shops.map(s => Number(item.stocks?.[s]) || 0).join(',');
+        csvContent += `"${item.name.replace(/"/g, '""')}","${item.sku}",${stocks}\n`;
+      });
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", fileName);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV Download Started");
+  };
+
+  const downloadRequisitionCSV = () => {
+    const date = new Date().toLocaleDateString('en-GB');
+    let csvContent = "\uFEFF";
+    csvContent += `Stock Requisition Form\n`;
+    csvContent += `Requesting Shop: ${currentShop}\n`;
+    csvContent += `Date: ${date}\n`;
+    csvContent += `Requested By: ${requesterName || 'N/A'}\n\n`;
+    csvContent += `Product,SKU,Source Shop,Requested Qty\n`;
+    
+    requisitionList.forEach(item => {
+      csvContent += `"${item.name.replace(/"/g, '""')}","${item.sku}","${item.sourceShop}",${item.quantity}\n`;
+    });
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `requisition_${new Date().getTime()}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Requisition CSV Downloaded");
+  };
+
   const handleExport = () => {
-    window.print();
+    downloadCSV();
   };
 
   const missingItems = useMemo(() => {
@@ -227,8 +302,15 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
             onClick={handleExport}
             className="px-8 py-3 bg-slate-900 dark:bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black dark:hover:bg-indigo-700 transition-all shadow-lg flex items-center gap-2"
           >
-            <i className="fa-solid fa-download"></i>
-            Export View
+            <i className="fa-solid fa-file-csv"></i>
+            Download CSV
+          </button>
+          <button 
+            onClick={() => window.print()}
+            className="px-4 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center gap-2"
+            title="Print View"
+          >
+            <i className="fa-solid fa-print"></i>
           </button>
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200/50 dark:border-slate-700/50">
             <button 
@@ -673,11 +755,18 @@ const ShopComparison: React.FC<ShopComparisonProps> = ({ items, currentShop }) =
             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Active Requisition List</h3>
             <div className="flex items-center gap-4">
               <button 
-                onClick={handleExport}
+                onClick={downloadRequisitionCSV}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md flex items-center gap-2"
+              >
+                <i className="fa-solid fa-file-csv"></i>
+                Download CSV
+              </button>
+              <button 
+                onClick={() => window.print()}
                 className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-md flex items-center gap-2"
               >
-                <i className="fa-solid fa-file-pdf"></i>
-                Download Form
+                <i className="fa-solid fa-print"></i>
+                Print Form
               </button>
               <button 
                 onClick={() => setRequisitionList([])}
