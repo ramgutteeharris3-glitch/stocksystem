@@ -119,7 +119,9 @@ export const SHOPS = [
   'Trianon',
   'Rhill',
   'Cascavelle',
-  'Rosebelle'
+  'Rosebelle',
+  'Arsenal',
+  'Masterstore'
 ] as const;
 
 export type ShopName = typeof SHOPS[number];
