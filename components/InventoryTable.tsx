@@ -57,6 +57,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
           </div>
           
           <button 
+            onClick={() => onEdit({} as InventoryItem)}
+            className="no-print flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-100 dark:shadow-none"
+          >
+            <i className="fa-solid fa-plus"></i> Register Product
+          </button>
+
+          <button 
             onClick={handleExportPDF}
             className="no-print flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-slate-800 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-black dark:hover:bg-slate-700 transition-all shadow-lg shadow-slate-200 dark:shadow-none"
           >
@@ -133,7 +140,7 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
               const hasPromo = item.promoPrice && item.promoPrice > 0;
 
               return (
-                <tr key={item.id} className="hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer" onClick={() => onViewHistory(item)}>
+                <tr key={item.id} className="hover:bg-indigo-50/20 dark:hover:bg-indigo-900/10 transition-colors group cursor-pointer" onClick={() => onEdit(item)}>
                   <td className="px-8 py-6">
                     <div>
                       <div className="flex items-center gap-2">
@@ -197,10 +204,13 @@ const InventoryTable: React.FC<InventoryTableProps> = ({ items, currentShop, onE
                   </td>
                   <td className="px-8 py-6 text-right no-print">
                     <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                      <button onClick={() => onEdit(item)} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-lg hover:shadow-indigo-50 dark:hover:shadow-none rounded-2xl transition-all flex items-center justify-center">
+                      <button onClick={() => onViewHistory(item)} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-lg hover:shadow-indigo-50 dark:hover:shadow-none rounded-2xl transition-all flex items-center justify-center" title="View History">
+                        <i className="fa-solid fa-clock-rotate-left"></i>
+                      </button>
+                      <button onClick={() => onEdit(item)} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-lg hover:shadow-indigo-50 dark:hover:shadow-none rounded-2xl transition-all flex items-center justify-center" title="Edit Item">
                         <i className="fa-solid fa-pen-to-square"></i>
                       </button>
-                      <button onClick={() => onDelete(item.id)} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800 hover:shadow-lg hover:shadow-rose-50 dark:hover:shadow-none rounded-2xl transition-all flex items-center justify-center">
+                      <button onClick={() => onDelete(item.id)} className="w-10 h-10 bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-400 hover:border-rose-200 dark:hover:border-rose-800 hover:shadow-lg hover:shadow-rose-50 dark:hover:shadow-none rounded-2xl transition-all flex items-center justify-center" title="Delete Item">
                         <i className="fa-solid fa-trash-can"></i>
                       </button>
                     </div>

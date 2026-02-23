@@ -178,7 +178,7 @@ const App: React.FC = () => {
     const cleanPrice = Number(itemData.price) || 0;
     const cleanPromo = itemData.promoPrice ? Number(itemData.promoPrice) : undefined;
     
-    if (editingItem) {
+    if (editingItem && editingItem.id) {
       setItems(prev => {
         const itemMovements: StockMovement[] = [];
         const oldItem = prev.find(i => i.id === editingItem.id);
@@ -192,6 +192,25 @@ const App: React.FC = () => {
           }
           if (oldItem.offers !== itemData.offers) {
             itemMovements.push(createMovement(oldItem.id, oldItem.name, oldItem.sku, 'Master', 'ADJUST', 0, undefined, `Offer Change: ${oldItem.offers || 'None'} -> ${itemData.offers || 'None'}`));
+          }
+
+          // Track manual stock adjustments per shop
+          if (itemData.stocks) {
+            Object.entries(itemData.stocks).forEach(([shop, newQty]) => {
+              const oldQty = oldItem.stocks?.[shop] || 0;
+              if (oldQty !== newQty) {
+                itemMovements.push(createMovement(
+                  oldItem.id, 
+                  oldItem.name, 
+                  oldItem.sku, 
+                  shop, 
+                  'ADJUST', 
+                  newQty - oldQty, 
+                  undefined, 
+                  `Manual Stock Adjustment: ${oldQty} -> ${newQty}`
+                ));
+              }
+            });
           }
         }
 
@@ -224,11 +243,18 @@ const App: React.FC = () => {
         return newList.sort((a, b) => a.name.localeCompare(b.name));
       });
       
-      if (itemData.quantity && itemData.quantity > 0) {
-        setMovements(prev => [
-          createMovement(newItem.id, newItem.name, newItem.sku, 'Master', 'IN', itemData.quantity!, undefined, 'Initial stock entry'),
-          ...prev
-        ]);
+      // Create movements for initial stocks
+      const initialMovements: StockMovement[] = [];
+      if (newItem.stocks) {
+        Object.entries(newItem.stocks).forEach(([shop, qty]) => {
+          if (qty > 0) {
+            initialMovements.push(createMovement(newItem.id, newItem.name, newItem.sku, shop, 'IN', qty, undefined, 'Initial stock entry'));
+          }
+        });
+      }
+      
+      if (initialMovements.length > 0) {
+        setMovements(prev => [...initialMovements, ...prev]);
       }
     }
     setIsFormOpen(false);
