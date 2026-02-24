@@ -9,15 +9,17 @@ interface SalesLedgerProps {
 }
 
 const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop, onCancelTransaction }) => {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [fromDate, setFromDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   const filteredLines = useMemo(() => {
-    // 1. Filter transactions by date and shop (only Receipts and VAT Refunds contribute to sales revenue)
+    // 1. Filter transactions by date range and shop (only Receipts and VAT Refunds contribute to sales revenue)
     const dayTransactions = transactions.filter(t => {
-      const isDateMatch = t.date.startsWith(selectedDate);
+      const txnDate = t.date.split('T')[0];
+      const isWithinRange = txnDate >= fromDate && txnDate <= toDate;
       const isShopMatch = currentShop === 'Global' || t.shop === currentShop;
       const isSalesType = t.type === 'RECEIPT' || t.type === 'VAT_REFUND';
-      return isDateMatch && isShopMatch && isSalesType;
+      return isWithinRange && isShopMatch && isSalesType;
     });
 
     // 2. Flatten into line items with matching receipt logic
@@ -50,7 +52,7 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop, on
         };
       })
     );
-  }, [transactions, selectedDate, currentShop]);
+  }, [transactions, fromDate, toDate, currentShop]);
 
   const totals = useMemo(() => {
     return filteredLines.reduce((acc, curr) => {
@@ -92,20 +94,29 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop, on
       <div className="bg-white dark:bg-slate-900 p-8 rounded-[3rem] shadow-sm border border-slate-100 dark:border-slate-800 transition-colors">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div>
-            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight uppercase">Daily Sales Ledger</h2>
+            <h2 className="text-2xl font-black text-slate-800 dark:text-white tracking-tight uppercase">Sales Ledger Audit</h2>
             <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-[0.2em] mt-1">
-              Terminal: <span className="text-indigo-600 dark:text-indigo-400">{currentShop}</span> • Official Record
+              Terminal: <span className="text-indigo-600 dark:text-indigo-400">{currentShop}</span> • {fromDate === toDate ? `Date: ${fromDate}` : `Range: ${fromDate} to ${toDate}`}
             </p>
           </div>
           
-          <div className="flex items-center gap-4 no-print">
-             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 px-6 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 transition-all">
-                <i className="fa-solid fa-calendar-day text-indigo-500 dark:text-indigo-400"></i>
+          <div className="flex flex-wrap items-center gap-4 no-print">
+             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 transition-all">
+                <span className="text-[9px] font-black uppercase text-indigo-500 dark:text-indigo-400">From</span>
                 <input 
                   type="date" 
-                  className="bg-transparent font-black text-sm outline-none text-slate-700 dark:text-slate-200"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-transparent font-black text-xs outline-none text-slate-700 dark:text-slate-200"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                />
+             </div>
+             <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 px-4 py-3 rounded-2xl border border-slate-200 dark:border-slate-700 transition-all">
+                <span className="text-[9px] font-black uppercase text-indigo-500 dark:text-indigo-400">To</span>
+                <input 
+                  type="date" 
+                  className="bg-transparent font-black text-xs outline-none text-slate-700 dark:text-slate-200"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
                 />
              </div>
              <button 
@@ -188,7 +199,7 @@ const SalesLedger: React.FC<SalesLedgerProps> = ({ transactions, currentShop, on
                     <div className="flex flex-col items-center justify-center opacity-30 grayscale">
                         <i className="fa-solid fa-receipt text-6xl mb-4 text-slate-300 dark:text-slate-700"></i>
                         <p className="font-black uppercase tracking-[0.4em] text-slate-400 dark:text-slate-500">Zero Ledger Entries</p>
-                        <p className="text-[10px] font-bold mt-2 uppercase tracking-widest">Date: {selectedDate}</p>
+                        <p className="text-[10px] font-bold mt-2 uppercase tracking-widest">Range: {fromDate} to {toDate}</p>
                     </div>
                   </td>
                 </tr>
