@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { InventoryItem, InventoryStats, AIInsight, SHOPS, ShopName, Transaction, StockMovement, DocumentType, Customer } from './types';
+import { InventoryItem, InventoryStats, AIInsight, SHOPS, ShopName, Transaction, StockMovement, DocumentType, Customer, WarehouseTransfer } from './types';
 import { INITIAL_ITEMS } from './constants';
 import StatCard from './components/StatCard';
 import InventoryTable from './components/InventoryTable';
@@ -9,6 +9,8 @@ import ImportModal from './components/ImportModal';
 import ItemHistoryModal from './components/ItemHistoryModal';
 import ReceiptModal from './components/ReceiptModal';
 import TransferModal from './components/TransferModal';
+import WarehouseTransferList from './components/WarehouseTransferList';
+import WarehouseTransferModal from './components/WarehouseTransferModal';
 import VatRefundModal from './components/VatRefundModal';
 import ConfirmModal from './components/ConfirmModal';
 import TransactionTracker from './components/TransactionTracker';
@@ -44,18 +46,25 @@ const App: React.FC = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications' | 'comparison'>('inventory');
+  const [warehouseTransfers, setWarehouseTransfers] = useState<WarehouseTransfer[]>(() => {
+    const saved = localStorage.getItem('inventory_warehouse_transfers_v1');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [activeTab, setActiveTab] = useState<'inventory' | 'tracker' | 'movements' | 'ledger' | 'customers' | 'notifications' | 'comparison' | 'warehouse-transfers'>('inventory');
   const [currentShop, setCurrentShop] = useState<ShopName>('Global');
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isReceiptOpen, setIsReceiptOpen] = useState(false);
   const [isTransferOpen, setIsTransferOpen] = useState(false);
+  const [isWarehouseTransferOpen, setIsWarehouseTransferOpen] = useState(false);
   const [isVatRefundOpen, setIsVatRefundOpen] = useState(false);
   const [isItemHistoryOpen, setIsItemHistoryOpen] = useState(false);
   const [isViewOnly, setIsViewOnly] = useState(false);
   const [editingItem, setEditingItem] = useState<InventoryItem | undefined>();
   const [selectedHistoryItem, setSelectedHistoryItem] = useState<InventoryItem | undefined>();
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
+  const [editingWarehouseTransfer, setEditingWarehouseTransfer] = useState<WarehouseTransfer | undefined>();
   const [insights, setInsights] = useState<AIInsight[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<{
@@ -423,6 +432,157 @@ const App: React.FC = () => {
     setEditingTransaction(undefined);
   };
 
+  const processWarehouseTransferStockChange = (transfer: WarehouseTransfer, revert: boolean) => {
+    const timestamp = new Date().toISOString();
+    const newMovements: StockMovement[] = [];
+
+    setItems(prev => {
+      const updatedItems = [...prev];
+      transfer.items.forEach(tItem => {
+        const itemIdx = updatedItems.findIndex(i => i.sku === tItem.sku);
+        if (itemIdx > -1) {
+          const item = updatedItems[itemIdx];
+          const updatedStocks = { ...(item.stocks || {}) };
+          
+          // 1. Handle Source Shop (From)
+          const fromQty = Number(updatedStocks[transfer.fromShop]) || 0;
+          const fromChange = revert ? tItem.quantity : -tItem.quantity;
+          updatedStocks[transfer.fromShop] = fromQty + fromChange;
+
+          // 2. Handle Destination Shop (To)
+          const toQty = Number(updatedStocks[tItem.toShop]) || 0;
+          const toChange = revert ? -tItem.quantity : tItem.quantity;
+          updatedStocks[tItem.toShop] = toQty + toChange;
+
+          updatedItems[itemIdx] = { ...item, stocks: updatedStocks, lastUpdated: timestamp };
+
+          // Log movement for Source
+          newMovements.push(createMovement(
+            item.id,
+            item.name,
+            item.sku,
+            transfer.fromShop as ShopName,
+            revert ? 'IN' : 'OUT',
+            tItem.quantity,
+            transfer.transferNoteNumber,
+            `${revert ? 'Reverted' : 'Applied'} Warehouse Transfer (From): ${transfer.transferNoteNumber}`
+          ));
+
+          // Log movement for Destination
+          newMovements.push(createMovement(
+            item.id,
+            item.name,
+            item.sku,
+            tItem.toShop as ShopName,
+            revert ? 'OUT' : 'IN',
+            tItem.quantity,
+            transfer.transferNoteNumber,
+            `${revert ? 'Reverted' : 'Applied'} Warehouse Transfer (To): ${transfer.transferNoteNumber}`
+          ));
+        }
+      });
+      return updatedItems;
+    });
+
+    if (!revert) {
+      setMovements(prev => [...newMovements, ...prev]);
+    }
+  };
+
+  const handleWarehouseTransferFinalize = (transfer: WarehouseTransfer, newItems: Partial<InventoryItem>[]) => {
+    const existing = warehouseTransfers.find(t => t.id === transfer.id);
+    
+    // 1. Handle New Items
+    if (newItems.length > 0) {
+      setItems(prev => {
+        const updated = [...prev];
+        newItems.forEach(ni => {
+          if (!updated.find(i => i.sku === ni.sku)) {
+            updated.push({
+              id: Math.random().toString(36).substr(2, 9),
+              name: ni.name!,
+              sku: ni.sku!,
+              category: ni.category || 'Other',
+              stocks: {},
+              minQuantity: 5,
+              price: ni.price || 0,
+              description: ni.description || '',
+              lastUpdated: new Date().toISOString()
+            });
+          }
+        });
+        return updated.sort((a, b) => a.name.localeCompare(b.name));
+      });
+    }
+
+    // 2. Revert old impact if editing
+    if (existing) {
+      processWarehouseTransferStockChange(existing, true);
+    }
+
+    // 3. Apply new impact
+    processWarehouseTransferStockChange(transfer, false);
+
+    // 4. Update state
+    setWarehouseTransfers(prev => {
+      if (existing) return prev.map(t => t.id === transfer.id ? transfer : t);
+      return [transfer, ...prev];
+    });
+
+    // 5. Create/Update Transaction for Tracker
+    const destinations = Array.from(new Set(transfer.items.map(i => i.toShop))).join(', ');
+    const txn: Transaction = {
+      id: transfer.id,
+      type: 'WAREHOUSE_TRANSFER',
+      receiptNumber: transfer.transferNoteNumber,
+      invoiceNumber: '',
+      transferNoteNumber: transfer.transferNoteNumber,
+      date: transfer.date,
+      shop: transfer.fromShop,
+      toShop: destinations,
+      salesperson: 'System',
+      customerName: 'Warehouse',
+      items: transfer.items.map(i => {
+        const invItem = items.find(inv => inv.sku === i.sku);
+        return {
+          itemId: invItem?.id || Math.random().toString(36).substr(2, 9),
+          sku: i.sku,
+          name: i.name,
+          quantity: i.quantity,
+          price: 0
+        };
+      }),
+      subtotal: 0,
+      total: 0,
+      discount: 0,
+      paymentMethod: 'CASH',
+      status: 'ACTIVE'
+    };
+
+    setTransactions(prev => {
+      const exists = prev.find(t => t.id === txn.id);
+      if (exists) return prev.map(t => t.id === txn.id ? txn : t);
+      return [txn, ...prev];
+    });
+
+    setIsWarehouseTransferOpen(false);
+    setEditingWarehouseTransfer(undefined);
+  };
+
+  const handleDeleteWarehouseTransfer = (transfer: WarehouseTransfer) => {
+    setConfirmConfig({
+      isOpen: true,
+      title: 'Delete Warehouse Transfer',
+      message: `Are you sure you want to delete transfer ${transfer.transferNoteNumber}? This will revert the stock adjustments.`,
+      onConfirm: () => {
+        processWarehouseTransferStockChange(transfer, true);
+        setWarehouseTransfers(prev => prev.filter(t => t.id !== transfer.id));
+        setTransactions(prev => prev.filter(t => t.id !== transfer.id));
+        setConfirmConfig(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
   const handleBulkImport = (newItems: Partial<InventoryItem>[], targetShop: ShopName, mode: 'MASTER_PRICELIST' | 'SHOP_RESTOCK') => {
     const timestamp = new Date().toISOString();
     const importMovements: StockMovement[] = [];
@@ -739,6 +899,9 @@ const App: React.FC = () => {
              <button onClick={() => setActiveTab('comparison')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'comparison' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
                Comparison
              </button>
+             <button onClick={() => setActiveTab('warehouse-transfers')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${activeTab === 'warehouse-transfers' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}>
+               Warehouse
+             </button>
              <button 
                onClick={() => setActiveTab('notifications')} 
                className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all relative ${activeTab === 'notifications' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'}`}
@@ -761,6 +924,9 @@ const App: React.FC = () => {
             </button>
             <button onClick={() => { setIsViewOnly(false); setEditingTransaction(undefined); setIsVatRefundOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white shadow-sm rounded-lg font-bold text-xs hover:bg-emerald-700 transition-all">
               <i className="fa-solid fa-passport"></i> VAT
+            </button>
+            <button onClick={() => { setEditingWarehouseTransfer(undefined); setIsWarehouseTransferOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white shadow-sm rounded-lg font-bold text-xs hover:bg-amber-700 transition-all">
+              <i className="fa-solid fa-truck-ramp-box"></i> Warehouse In
             </button>
           </div>
           <button onClick={() => setIsImportOpen(true)} className="bg-slate-900 dark:bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all shadow-lg flex items-center gap-2">
@@ -864,6 +1030,13 @@ const App: React.FC = () => {
           <NotificationCenter transactions={transactions} movements={movements} currentShop={currentShop} onEditTransaction={handleEditTransaction} />
         ) : activeTab === 'comparison' ? (
           <ShopComparison items={items} currentShop={currentShop} />
+        ) : activeTab === 'warehouse-transfers' ? (
+          <WarehouseTransferList 
+            transfers={warehouseTransfers} 
+            currentShop={currentShop} 
+            onEdit={(t) => { setEditingWarehouseTransfer(t); setIsWarehouseTransferOpen(true); }}
+            onDelete={handleDeleteWarehouseTransfer}
+          />
         ) : (
           <MovementTracker 
             movements={movements} 
@@ -896,6 +1069,16 @@ const App: React.FC = () => {
 
       {isVatRefundOpen && (
         <VatRefundModal items={items} transactions={transactions} initialShop={currentShop} initialTransaction={editingTransaction} isViewOnly={isViewOnly} onIssue={handleIssueDocument} onClose={() => { setIsVatRefundOpen(false); setIsViewOnly(false); setEditingTransaction(undefined); }} />
+      )}
+
+      {isWarehouseTransferOpen && (
+        <WarehouseTransferModal 
+          items={items}
+          initialShop={currentShop === 'Global' ? 'Master' : currentShop}
+          existingTransfer={editingWarehouseTransfer}
+          onFinalize={handleWarehouseTransferFinalize}
+          onClose={() => { setIsWarehouseTransferOpen(false); setEditingWarehouseTransfer(undefined); }}
+        />
       )}
 
       <ConfirmModal 

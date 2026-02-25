@@ -142,3 +142,85 @@ export const generateDescription = async (itemName: string): Promise<string> => 
     return `Premium quality ${itemName} designed for durability and high performance.`;
   }
 };
+
+export const parseTransferNote = async (base64Image: string): Promise<{
+  transferNoteNumber: string;
+  date: string;
+  fromShop: string;
+  items: { sku: string; name: string; quantity: number; toShop: string }[];
+}> => {
+  try {
+    const model = "gemini-3.1-pro-preview";
+    
+    // Detect MIME type from data URL if present
+    const mimeTypeMatch = base64Image.match(/^data:([^;]+);base64,/);
+    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
+    const data = base64Image.replace(/^data:[^;]+;base64,/, "");
+
+    const prompt = `
+      Analyze this Warehouse Transfer Note document. 
+      Extract the following information from the document:
+      1. Transfer Note Number / Batch Reference No (e.g., WHTR12681)
+      2. Date (e.g., 24/02/2026, convert to YYYY-MM-DD)
+      3. Source Shop (The shop specified in the 'From Whse' or 'Source' column)
+      4. List of items from the table:
+         - SKU / Item Code
+         - Name / Item Description
+         - Quantity (The transfer quantity, usually in the 'Quantity' column)
+         - Destination Shop (The shop specified in the 'To Whse' or 'Destination' column for this specific item).
+
+      Mapping for Shop Names (if you see these abbreviations, use the full name):
+      - 'Casca' or 'Casc' -> 'Cascavelle'
+      - 'PL' or 'PL Branch' -> 'Plouis'
+      - 'Bag' -> 'Bagatelle'
+      - 'Trib' -> 'Tribecca'
+      - 'Trian' -> 'Trianon'
+      - 'RH' -> 'Rhill'
+      - 'RB' -> 'Rosebelle'
+      - 'Ars' -> 'Arsenal'
+      - 'Master' -> 'Master'
+      - 'Mstore' -> 'Masterstore'
+
+      Return the response as a JSON object with this structure:
+      {
+        "transferNoteNumber": "string",
+        "date": "string",
+        "fromShop": "string",
+        "items": [
+          { "sku": "string", "name": "string", "quantity": number, "toShop": "string" }
+        ]
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model,
+      contents: {
+        parts: [
+          { text: prompt },
+          {
+            inlineData: {
+              mimeType: mimeType,
+              data: data
+            }
+          }
+        ]
+      },
+      config: {
+        responseMimeType: "application/json"
+      }
+    });
+
+    const text = response.text;
+    if (text) {
+      // Clean up potential markdown formatting if the model didn't strictly follow responseMimeType
+      const cleanedText = text.replace(/```json\n?/, "").replace(/\n?```/, "").trim();
+      return JSON.parse(cleanedText);
+    }
+    throw new Error("No data extracted from document");
+  } catch (e: any) {
+    console.error("Gemini parse error:", e);
+    // Provide a more descriptive error if possible
+    const errorMessage = e?.message || "Unknown error during parsing";
+    throw new Error(`AI Parsing Failed: ${errorMessage}`);
+  }
+};

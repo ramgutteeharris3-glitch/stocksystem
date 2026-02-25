@@ -76,6 +76,21 @@ export interface Transaction {
   };
 }
 
+export interface WarehouseTransfer {
+  id: string;
+  transferNoteNumber: string;
+  date: string;
+  fromShop: string;
+  items: {
+    sku: string;
+    name: string;
+    quantity: number;
+    toShop: string; // Destination shop
+  }[];
+  status: 'ACTIVE' | 'CANCELLED';
+  imageUrl?: string;
+}
+
 export interface StockMovement {
   id: string;
   itemId: string;

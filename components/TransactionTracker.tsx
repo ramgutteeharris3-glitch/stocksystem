@@ -97,8 +97,16 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
                 <tr key={txn.id} className={`hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors group ${txn.status === 'CANCELLED' ? 'opacity-50 grayscale' : ''}`}>
                   <td className="px-10 py-8">
                     <div className="flex items-center gap-3">
-                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center no-print ${txn.type === 'RECEIPT' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'}`}>
-                          <i className={`fa-solid ${txn.type === 'RECEIPT' ? 'fa-cash-register' : 'fa-right-left'}`}></i>
+                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center no-print ${
+                         txn.type === 'RECEIPT' ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400' : 
+                         txn.type === 'WAREHOUSE_TRANSFER' ? 'bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' :
+                         'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                       }`}>
+                          <i className={`fa-solid ${
+                            txn.type === 'RECEIPT' ? 'fa-cash-register' : 
+                            txn.type === 'WAREHOUSE_TRANSFER' ? 'fa-truck-ramp-box' :
+                            'fa-right-left'
+                          }`}></i>
                        </div>
                        <div>
                           <div className="flex items-center gap-2">
@@ -147,7 +155,8 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
                   </td>
                   <td className="px-10 py-8 text-right">
                     <p className="font-black text-slate-900 dark:text-white text-lg tracking-tighter">
-                      {txn.type === 'RECEIPT' ? `MUR ${txn.total.toFixed(2)}` : '--'}
+                      {txn.type === 'RECEIPT' ? `MUR ${txn.total.toFixed(2)}` : 
+                       txn.type === 'WAREHOUSE_TRANSFER' ? 'TRANSFER' : '--'}
                     </p>
                   </td>
                   <td className="px-10 py-8 text-right no-print">
