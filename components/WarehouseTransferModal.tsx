@@ -19,6 +19,10 @@ const WarehouseTransferModal: React.FC<WarehouseTransferModalProps> = ({
   existingTransfer 
 }) => {
   const [isParsing, setIsParsing] = useState(false);
+  const [parsingStatus, setParsingStatus] = useState<string>('');
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileType, setFileType] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [transferData, setTransferData] = useState<Partial<WarehouseTransfer>>(
     existingTransfer || {
       transferNoteNumber: '',
@@ -31,72 +35,170 @@ const WarehouseTransferModal: React.FC<WarehouseTransferModalProps> = ({
   const [newItemsToCreate, setNewItemsToCreate] = useState<Partial<InventoryItem>[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const processFile = React.useCallback(async (file: File) => {
+    if (!file || (!file.type.startsWith('image/') && file.type !== 'application/pdf')) {
+      alert("Please upload a valid image or PDF file.");
+      return;
+    }
 
+    // Reset previous state
     setIsParsing(true);
+    setParsingStatus('Reading document...');
+    setFileType(file.type);
+    
+    // Create and set preview immediately
+    const objectUrl = URL.createObjectURL(file);
+    setPreviewUrl(objectUrl);
+
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const base64 = event.target?.result as string;
-        const parsed = await parseTransferNote(base64);
-        
-        // Match parsed items with existing inventory
-        const processedItems = await Promise.all(parsed.items.map(async (pi) => {
-          const cleanSku = pi.sku.trim().toLowerCase();
-          const cleanName = pi.name.trim().toLowerCase();
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(file);
+      });
 
-          // Detect existing product by SKU or Name (case-insensitive)
-          const existing = items.find(i => 
-            i.sku.trim().toLowerCase() === cleanSku || 
-            i.name.trim().toLowerCase() === cleanName
-          );
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setParsingStatus('AI analyzing note...');
+      
+      const parsed = await parseTransferNote(base64);
+      
+      if (!parsed || !parsed.items) {
+        throw new Error("AI could not find any items in the document.");
+      }
 
-          if (!existing) {
-            // Check if we already added this to newItemsToCreate
-            if (!newItemsToCreate.find(ni => ni.sku?.trim().toLowerCase() === cleanSku || ni.name?.trim().toLowerCase() === cleanName)) {
-              const description = await generateDescription(pi.name);
-              setNewItemsToCreate(prev => [...prev, {
-                name: pi.name.trim(),
-                sku: pi.sku.trim(),
-                category: Category.OTHER,
-                price: 0, // Manual entry required
-                minQuantity: 5,
-                description,
-                stocks: {}
-              }]);
-            }
-          } else {
-            // If found, use the existing SKU and Name to ensure consistency
-            pi.sku = existing.sku;
-            pi.name = existing.name;
+      const detectedNewItems: Partial<InventoryItem>[] = [];
+      const processedItems = [];
+
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setParsingStatus('Matching inventory...');
+
+      for (const pi of parsed.items) {
+        if (!pi.name || !pi.sku) continue;
+
+        const cleanSku = pi.sku.trim().toLowerCase();
+        const cleanName = pi.name.trim().toLowerCase();
+
+        const existing = items.find(i => 
+          i.sku.trim().toLowerCase() === cleanSku || 
+          i.name.trim().toLowerCase() === cleanName
+        );
+
+        if (!existing) {
+          const alreadyDetected = detectedNewItems.find(ni => ni.sku?.toLowerCase() === cleanSku || ni.name?.toLowerCase() === cleanName);
+          if (!alreadyDetected) {
+            detectedNewItems.push({
+              name: pi.name.trim(),
+              sku: pi.sku.trim(),
+              category: Category.OTHER,
+              price: 0,
+              minQuantity: 5,
+              description: '',
+              stocks: {}
+            });
           }
+        } else {
+          pi.sku = existing.sku;
+          pi.name = existing.name;
+        }
 
-          return {
-            sku: pi.sku,
-            name: pi.name,
-            quantity: pi.quantity,
-            toShop: pi.toShop as ShopName || initialShop
-          };
+        processedItems.push({
+          sku: pi.sku,
+          name: pi.name,
+          quantity: Number(pi.quantity) || 0,
+          toShop: (pi.toShop as ShopName) || initialShop
+        });
+      }
+
+      if (detectedNewItems.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 400));
+        setParsingStatus(`Generating descriptions for ${detectedNewItems.length} new items...`);
+        const itemsWithDescriptions = await Promise.all(detectedNewItems.map(async (ni) => {
+          try {
+            const description = await generateDescription(ni.name!);
+            return { ...ni, description };
+          } catch {
+            return { ...ni, description: `New item: ${ni.name}` };
+          }
         }));
 
-        setTransferData(prev => ({
-          ...prev,
-          transferNoteNumber: parsed.transferNoteNumber,
-          date: parsed.date,
-          fromShop: parsed.fromShop || prev.fromShop || 'Master',
-          items: processedItems
-        }));
-      };
-      reader.readAsDataURL(file);
+        setNewItemsToCreate(prev => {
+          const filtered = itemsWithDescriptions.filter(ni => 
+            !prev.find(p => p.sku?.toLowerCase() === ni.sku?.toLowerCase() || p.name?.toLowerCase() === ni.name?.toLowerCase())
+          );
+          return [...prev, ...filtered];
+        });
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 400));
+      setParsingStatus('Finalizing...');
+      await new Promise(resolve => setTimeout(resolve, 400));
+      
+      setTransferData(prev => ({
+        ...prev,
+        transferNoteNumber: parsed.transferNoteNumber || prev.transferNoteNumber,
+        date: parsed.date || prev.date,
+        fromShop: (parsed.fromShop as ShopName) || prev.fromShop || 'Master',
+        items: processedItems
+      }));
     } catch (error: any) {
+      console.error("Process file error:", error);
       alert(error?.message || "Failed to parse transfer note. Please try again or enter manually.");
-      console.error(error);
+      // Keep the preview URL so they can see what they uploaded
     } finally {
       setIsParsing(false);
+      setParsingStatus('');
     }
+  }, [items, initialShop]);
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) processFile(file);
   };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  };
+
+  // Separate effect for paste listener to keep it stable
+  React.useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const clipboardItems = e.clipboardData?.items;
+      if (clipboardItems) {
+        for (let i = 0; i < clipboardItems.length; i++) {
+          if (clipboardItems[i].type.indexOf('image') !== -1) {
+            const blob = clipboardItems[i].getAsFile();
+            if (blob) processFile(blob);
+            break;
+          }
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [processFile]);
+
+  // Separate effect for previewUrl cleanup
+  React.useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const updateItem = (index: number, field: string, value: any) => {
     const newItems = [...(transferData.items || [])];
@@ -147,29 +249,71 @@ const WarehouseTransferModal: React.FC<WarehouseTransferModalProps> = ({
 
         <div className="flex-grow overflow-y-auto p-8 space-y-8">
           {!existingTransfer && (
-            <div className="flex flex-col items-center justify-center p-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[2rem] bg-slate-50/50 dark:bg-slate-800/20">
+            <div 
+              className={`flex flex-col items-center justify-center p-12 border-2 border-dashed rounded-[2rem] transition-all ${
+                isDragging 
+                  ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20 scale-[0.99]' 
+                  : 'border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20'
+              }`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
               <input 
                 type="file" 
                 ref={fileInputRef} 
                 onChange={handleFileUpload} 
-                accept="image/*" 
+                accept="image/*,.pdf" 
                 className="hidden" 
               />
-              <div className="text-center space-y-4">
-                <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto">
-                  <i className={`fa-solid ${isParsing ? 'fa-spinner fa-spin' : 'fa-camera'} text-3xl text-indigo-600`}></i>
-                </div>
-                <div>
-                  <h4 className="text-lg font-black text-slate-800 dark:text-white uppercase">Upload Transfer Note</h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Capture or upload a photo of the warehouse document</p>
-                </div>
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isParsing}
-                  className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none disabled:opacity-50"
-                >
-                  {isParsing ? 'Processing with Gemini AI...' : 'Select Photo'}
-                </button>
+              <div className="text-center space-y-4 w-full">
+                {previewUrl ? (
+                  <div className="relative group max-w-md mx-auto">
+                    {fileType === 'application/pdf' ? (
+                      <div className="w-full h-48 bg-slate-100 dark:bg-slate-800 rounded-2xl flex flex-col items-center justify-center border-4 border-white dark:border-slate-800 shadow-lg">
+                        <i className="fa-solid fa-file-pdf text-5xl text-rose-500 mb-2"></i>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">PDF Document</p>
+                      </div>
+                    ) : (
+                      <img 
+                        src={previewUrl} 
+                        alt="Preview" 
+                        className="w-full h-48 object-cover rounded-2xl shadow-lg border-4 border-white dark:border-slate-800"
+                      />
+                    )}
+                    {isParsing && (
+                      <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-[2px] rounded-2xl flex items-center justify-center">
+                        <div className="flex flex-col items-center gap-2">
+                          <i className="fa-solid fa-spinner fa-spin text-3xl text-white"></i>
+                          <p className="text-xs font-black text-white uppercase tracking-widest">{parsingStatus || 'AI Scanning...'}</p>
+                        </div>
+                      </div>
+                    )}
+                    <button 
+                      onClick={() => { setPreviewUrl(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                      className="absolute -top-2 -right-2 w-8 h-8 bg-rose-500 text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform"
+                    >
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto">
+                      <i className={`fa-solid ${isParsing ? 'fa-spinner fa-spin' : 'fa-camera'} text-3xl text-indigo-600`}></i>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-black text-slate-800 dark:text-white uppercase">Upload Transfer Note</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">Drag & drop or select a photo or PDF of the warehouse document</p>
+                    </div>
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isParsing}
+                      className="px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 dark:shadow-none disabled:opacity-50"
+                    >
+                      {isParsing ? (parsingStatus || 'Processing...') : 'Select File'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

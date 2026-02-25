@@ -2,14 +2,13 @@
 import { GoogleGenAI } from "@google/genai";
 import { InventoryItem, AIInsight, Category } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
 /**
  * Local intelligence service that runs without network connectivity.
  * Replaces remote Gemini API calls with local analytical logic.
  */
 export const analyzeInventory = async (items: InventoryItem[]): Promise<AIInsight[]> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
     const model = "gemini-3-flash-preview";
     const prompt = `
       Analyze this inventory data and provide 3 actionable insights.
@@ -128,6 +127,7 @@ export const parseBulkInventory = async (rawText: string): Promise<Partial<Inven
 
 export const generateDescription = async (itemName: string): Promise<string> => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
     const model = "gemini-3-flash-preview";
     const prompt = `Generate a professional, concise product description (max 2 sentences) for an inventory item named: ${itemName}`;
 
@@ -150,11 +150,18 @@ export const parseTransferNote = async (base64Image: string): Promise<{
   items: { sku: string; name: string; quantity: number; toShop: string }[];
 }> => {
   try {
-    const model = "gemini-3.1-pro-preview";
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    const model = "gemini-3-flash-preview";
     
     // Detect MIME type from data URL if present
     const mimeTypeMatch = base64Image.match(/^data:([^;]+);base64,/);
-    const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
+    let mimeType = mimeTypeMatch ? mimeTypeMatch[1] : "image/jpeg";
+    
+    // Ensure we support PDF
+    if (base64Image.startsWith('data:application/pdf')) {
+      mimeType = 'application/pdf';
+    }
+    
     const data = base64Image.replace(/^data:[^;]+;base64,/, "");
 
     const prompt = `
@@ -212,7 +219,14 @@ export const parseTransferNote = async (base64Image: string): Promise<{
 
     const text = response.text;
     if (text) {
-      // Clean up potential markdown formatting if the model didn't strictly follow responseMimeType
+      // Find the first '{' and last '}' to extract the JSON object
+      const start = text.indexOf('{');
+      const end = text.lastIndexOf('}');
+      if (start !== -1 && end !== -1) {
+        const jsonStr = text.substring(start, end + 1);
+        return JSON.parse(jsonStr);
+      }
+      // Fallback to cleaning markdown if no braces found (unlikely with responseMimeType)
       const cleanedText = text.replace(/```json\n?/, "").replace(/\n?```/, "").trim();
       return JSON.parse(cleanedText);
     }
