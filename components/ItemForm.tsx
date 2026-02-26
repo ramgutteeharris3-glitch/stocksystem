@@ -183,7 +183,7 @@ const ItemForm: React.FC<ItemFormProps> = ({ item, onSave, onClose }) => {
                 </button>
               </div>
               <textarea 
-                rows={2}
+                rows={4}
                 className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none bg-slate-50 dark:bg-slate-800 text-sm resize-none font-medium text-slate-600 dark:text-slate-300"
                 value={formData.description}
                 onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}

@@ -136,7 +136,7 @@ const TransactionTracker: React.FC<TransactionTrackerProps> = ({ transactions, c
                     <div className="mt-1.5 space-y-0.5">
                       <p className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-tight">{txn.customerName || 'Guest Customer'}</p>
                       {txn.customerAddress && (
-                        <p className="text-[8px] text-slate-400 dark:text-slate-500 truncate max-w-[180px] font-medium leading-tight italic">
+                        <p className="text-[8px] text-slate-400 dark:text-slate-500 font-medium leading-tight italic">
                           {txn.customerAddress}
                         </p>
                       )}

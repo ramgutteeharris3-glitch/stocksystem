@@ -129,7 +129,7 @@ const MovementTracker: React.FC<MovementTrackerProps> = ({ movements, initialSho
                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase mt-0.5">{new Date(m.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                   </td>
                   <td className="px-8 py-6">
-                    <p className="font-black text-slate-800 dark:text-white text-sm uppercase truncate max-w-[200px]">{m.itemName}</p>
+                    <p className="font-black text-slate-800 dark:text-white text-sm uppercase">{m.itemName}</p>
                     <p className="text-[10px] font-black text-indigo-400 dark:text-indigo-500 tracking-wider">SKU: {m.sku}</p>
                   </td>
                   <td className="px-8 py-6">
@@ -169,7 +169,7 @@ const MovementTracker: React.FC<MovementTrackerProps> = ({ movements, initialSho
                            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase">Manual Action</p>
                         )}
                         {m.referenceId && <p className="print-only text-[10px] font-black text-indigo-600 uppercase">REF: {m.referenceId}</p>}
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium mt-1 line-clamp-2 italic">
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-medium mt-1 italic">
                             "{m.note || 'No additional notes provided.'}"
                         </p>
                     </div>
